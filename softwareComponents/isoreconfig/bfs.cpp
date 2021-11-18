@@ -10,14 +10,14 @@ const Configuration getRepre(const Configuration& sample)
     return sample;
 }
 
-bool equalConfig(const Configuration* first, const Configuration* second) 
+bool equalConfig(const Configuration& first, const Configuration& second) 
 {
 
     // Compare if first and second are equal configurations
     // (they belong to the same isomorphic class)
     // TODO
 
-    return *first == *second;
+    return first == second;
 }
 
 std::vector<Configuration> getDescendants(const Configuration& current, unsigned int step, unsigned int bound) 
@@ -31,28 +31,31 @@ std::vector<Configuration> getDescendants(const Configuration& current, unsigned
     return possConfs;
 }
 
-std::vector<Configuration> getPredecessors(std::unordered_map<const Configuration*, const Configuration*>& predecessor, const Configuration* target, const Configuration* start)
+std::vector<Configuration> getPredecessors(std::unordered_map<const Configuration*, const Configuration*>& predecessor, 
+    const Configuration& target, const Configuration& start)
 {
     // Make a vector of predecessors of target configuration 
     // from map of predecessors
     // Assume target is in predecessors
 
     std::vector<Configuration> output;
-    const Configuration* current = target;
+    const Configuration* current = &target;
     
-    while (!equalConfig(current, start)) {
-        output.insert(output.end(), *current);
+    while (!equalConfig(*current, start)) {
+        // assert(current);
+        output.push_back(*current);
         current = predecessor.find(current)->second;
     }
 
-    output.insert(output.end(), *start);
+    output.push_back(start);
 
     std::reverse(output.begin(), output.end());
     return output;
 
 } 
 
-std::vector<Configuration> BFS(const Configuration& start, const Configuration& target, unsigned int step, unsigned int bound)
+std::vector<Configuration> BFS(const Configuration& start, const Configuration& target, 
+    unsigned int step, unsigned int bound)
 {
     const Configuration s = getRepre(start);
     const Configuration t = getRepre(target);
@@ -60,42 +63,44 @@ std::vector<Configuration> BFS(const Configuration& start, const Configuration& 
     std::unordered_map<const Configuration*, const Configuration*> predecessor;
     std::unordered_map<const Configuration*, int> distance;
 
-    std::queue<const Configuration*> bfsQueue;
-    std::unordered_set<Configuration, ConfigurationHash> seen;
-
     // Starting configuration has itself as predecessor
     // and distance of 0
     predecessor.insert({&s,&s});
     distance.insert({&s,0});
 
-    if (equalConfig(&s, &t)) 
+    // start is isomorphic to target
+    if (equalConfig(s, t)) 
     {
-        return getPredecessors(predecessor, &s, &s);
+        return getPredecessors(predecessor, s, s);
     }
 
-    seen.insert(s);
-    bfsQueue.push(&s);
+    std::queue<const Configuration*> bfsQueue;
+    std::unordered_set<Configuration, ConfigurationHash> seen;
 
+    bfsQueue.push(&s);
+    seen.insert(s);
+    
     const Configuration* current;
-    std::vector<Configuration> descendants;
 
     while (!bfsQueue.empty()) 
     {
         current = bfsQueue.front();
         bfsQueue.pop();
 
-        descendants = getDescendants(*current, step, bound);
+        std::vector<Configuration> descendants = getDescendants(*current, step, bound);
+
         for(Configuration child : descendants) {
-            std::cout << IO::toString(child);
             if (seen.find(child) == seen.end()) {
-                seen.insert(child);
-                const Configuration* child_ptr = &(*(seen.find(child))); // &child stays the same in all iterations
+                auto iter = std::get<0>(seen.insert(child));
+                // Points to configuration saved in seen, not to the temporary one here
+                const Configuration* child_ptr = &(*iter);
+
                 predecessor.insert({child_ptr, current});
                 distance.insert({child_ptr, distance.find(current)->second + 1});
 
-                if (equalConfig(child_ptr, &t)) 
+                if (equalConfig(*child_ptr, t)) 
                 {
-                    return getPredecessors(predecessor, child_ptr, &s);
+                    return getPredecessors(predecessor, *child_ptr, s);
                 }
 
                 bfsQueue.push(child_ptr);
