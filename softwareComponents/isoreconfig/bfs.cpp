@@ -1,5 +1,5 @@
 #include "BFS.h"
-#include <IO.h>
+#include <cassert>
 
 const Configuration getRepre(const Configuration& sample) 
 {
@@ -42,8 +42,10 @@ std::vector<Configuration> getPredecessors(std::unordered_map<const Configuratio
     const Configuration* current = &target;
     
     while (!equalConfig(*current, start)) {
-        // assert(current);
+        assert(current);
         output.push_back(*current);
+        // current config must have a predecessor
+        assert(predecessor.find(current) != predecessor.end());
         current = predecessor.find(current)->second;
     }
 
@@ -55,7 +57,7 @@ std::vector<Configuration> getPredecessors(std::unordered_map<const Configuratio
 } 
 
 std::vector<Configuration> BFS(const Configuration& start, const Configuration& target, 
-    unsigned int step, unsigned int bound)
+    unsigned int step, unsigned int bound, BFSReporter reporter)
 {
     const Configuration s = getRepre(start);
     const Configuration t = getRepre(target);
@@ -78,6 +80,7 @@ std::vector<Configuration> BFS(const Configuration& start, const Configuration& 
     std::unordered_set<Configuration, ConfigurationHash> seen;
 
     bfsQueue.push(&s);
+
     seen.insert(s);
     
     const Configuration* current;
