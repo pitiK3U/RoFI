@@ -8,11 +8,13 @@ int main(int argc, char* argv[])
     auto & targetPath = cli.opt<std::string>("target", "./target.in").desc("Target configuration in valid format");
     auto & step = cli.opt<int>("step", 90).desc("Degree of rotation for 1 step");
     auto & bound = cli.opt<int>("bound", 1).desc("Bound");
+    auto & showStats = cli.opt<bool>("stats").desc("Show statistics of the BFS search");
     if (!cli.parse(argc, argv))
         return cli.printError(std::cerr); // prints error and returns cli.exitCode()
     
     Configuration start;
     Configuration target;
+    BFSReporter reporter;
 
     // Read start configuration
     std::ifstream inputStart;
@@ -53,9 +55,14 @@ int main(int argc, char* argv[])
     }
 
     // Get configs from start to target
-    std::vector<Configuration> result = BFS(start, target, *step, *bound);
+    std::vector<Configuration> result = BFS(start, target, *step, *bound, reporter);
 
     // Write the result of BFS search
     std::cout << IO::toString(result);
+
+    // Show BFS stats
+    if (*showStats) {
+        std::cout << reporter.toString();
+    }
     
 }

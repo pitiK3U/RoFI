@@ -57,7 +57,7 @@ std::vector<Configuration> getPredecessors(std::unordered_map<const Configuratio
 } 
 
 std::vector<Configuration> BFS(const Configuration& start, const Configuration& target, 
-    unsigned int step, unsigned int bound, BFSReporter reporter)
+    unsigned int step, unsigned int bound, BFSReporter& reporter)
 {
     const Configuration s = getRepre(start);
     const Configuration t = getRepre(target);
@@ -68,7 +68,9 @@ std::vector<Configuration> BFS(const Configuration& start, const Configuration& 
     // Starting configuration has itself as predecessor
     // and distance of 0
     predecessor.insert({&s,&s});
+    reporter.onUpdatePredecessors(predecessor);
     distance.insert({&s,0});
+    reporter.onUpdateDistance(distance);
 
     // start is isomorphic to target
     if (equalConfig(s, t)) 
@@ -80,35 +82,48 @@ std::vector<Configuration> BFS(const Configuration& start, const Configuration& 
     std::unordered_set<Configuration, ConfigurationHash> seen;
 
     bfsQueue.push(&s);
+    reporter.onUpdateQueue(bfsQueue);
 
     seen.insert(s);
-    
-    const Configuration* current;
+    reporter.onUpdateSeen(seen);
 
     while (!bfsQueue.empty()) 
     {
-        current = bfsQueue.front();
+        const Configuration* current = bfsQueue.front();
+        reporter.onUpdateCurrent(*current);
+
         bfsQueue.pop();
+        reporter.onUpdateQueue(bfsQueue);
 
         std::vector<Configuration> descendants = getDescendants(*current, step, bound);
 
         for(Configuration child : descendants) {
             if (seen.find(child) == seen.end()) {
                 auto iter = std::get<0>(seen.insert(child));
+                reporter.onUpdateSeen(seen);
+
                 // Points to configuration saved in seen, not to the temporary one here
                 const Configuration* child_ptr = &(*iter);
 
                 predecessor.insert({child_ptr, current});
+                reporter.onUpdatePredecessors(predecessor);
+
                 distance.insert({child_ptr, distance.find(current)->second + 1});
+                reporter.onUpdateDistance(distance);
 
                 if (equalConfig(*child_ptr, t)) 
                 {
-                    return getPredecessors(predecessor, *child_ptr, s);
+                    std::vector<Configuration> output = getPredecessors(predecessor, *child_ptr, s);
+                    reporter.onBuildPredecessors(output);
+                    return output;
                 }
 
                 bfsQueue.push(child_ptr);
+                reporter.onUpdateQueue(bfsQueue);
             }
         }
     }
-    return {};
+    std::vector<Configuration> output = {};
+    reporter.onBuildPredecessors(output);
+    return output;
 }
