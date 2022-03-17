@@ -67,33 +67,31 @@ std::vector<Configuration> BFS(const Configuration& start, const Configuration& 
 
     // Starting configuration has itself as predecessor
     // and distance of 0
-    predecessor.insert({&s,&s});
-    reporter.onUpdatePredecessors(predecessor);
-    distance.insert({&s,0});
-    reporter.onUpdateDistance(distance);
+    predecessor.insert( { &s, &s } );
+    reporter.onUpdatePredecessors( predecessor );
+    distance.insert( { &s, 0 } );
+    reporter.onUpdateDistance( distance );
 
     // start is isomorphic to target
-    if (equalConfig(s, t)) 
-    {
-        return getPredecessors(predecessor, s, s);
-    }
+    if ( equalConfig( s, t ) ) 
+        return getPredecessors( predecessor, s, s );
 
-    std::queue<const Configuration*> bfsQueue;
-    std::unordered_set<Configuration, ConfigurationHash> seen;
+    std::queue< const Configuration* > bfsQueue;
+    std::unordered_set< Configuration, ConfigurationHash > seen;
 
-    bfsQueue.push(&s);
-    reporter.onUpdateQueue(bfsQueue);
+    bfsQueue.push( &s );
+    reporter.onUpdateQueue( bfsQueue );
 
-    seen.insert(s);
-    reporter.onUpdateSeen(seen);
+    seen.insert( s );
+    reporter.onUpdateSeen( seen );
 
-    while (!bfsQueue.empty()) 
+    while ( !bfsQueue.empty() ) 
     {
         const Configuration* current = bfsQueue.front();
-        reporter.onUpdateCurrent(*current);
+        reporter.onUpdateCurrent( *current );
 
         bfsQueue.pop();
-        reporter.onUpdateQueue(bfsQueue);
+        reporter.onUpdateQueue( bfsQueue );
 
         std::vector<Configuration> descendants = getDescendants(*current, step, bound);
 

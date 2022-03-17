@@ -1,6 +1,17 @@
 #include "BFS.h"
 #include "dimcli/cli.h"
 
+std::vector<Configuration> getDescendants(const Configuration& current, unsigned int step, unsigned int bound) 
+{
+    // Get possible configurations made from the current one
+    // "1 step" away, ignoring configurations of identical classes
+    // TODO
+
+    std::vector<Configuration> possConfs;
+    next(current, possConfs, step, bound);
+    return possConfs;
+}
+
 int main(int argc, char* argv[]) 
 {
     Dim::Cli cli;
@@ -21,17 +32,17 @@ int main(int argc, char* argv[])
     inputStart.open(*startPath);
     if (inputStart.fail()) 
     {
-        std::cerr << "Invalid path to start configuration: " + *startPath;
+        std::cerr << "Invalid path to start configuration: " + *startPath "\n";
         exit(1);
     }
     if (!IO::readConfiguration(inputStart, start)) 
     {
-        std::cerr << "Start configuration is not in valid format";
+        std::cerr << "Start configuration is not in valid format" << "\n";
         exit(1);
     }
     if (!start.isValid()) 
     {
-        std::cerr << "Start configuration is not valid";
+        std::cerr << "Start configuration is not valid" << "\n";
         exit(1);
     }
 
@@ -64,5 +75,53 @@ int main(int argc, char* argv[])
     if (*showStats) {
         std::cout << reporter.toString();
     }
-    
+
+    // Debugging
+    // Prints all possible configurations of given modules
+
+    /* Configuration cnf;
+    std::ifstream inputTarget;
+    inputTarget.open( "./basic.in" );
+    IO::readConfiguration( inputTarget, cnf );
+    std::cout << IO::toString( cnf ) << "\n";
+
+    std::queue< const Configuration* > bfsQueue;
+    std::unordered_set< Configuration, ConfigurationHash > seen;
+
+    bfsQueue.push( &cnf );
+    seen.insert( cnf );
+
+    while ( !bfsQueue.empty() ) 
+    {
+        const Configuration* current = bfsQueue.front();
+
+        bfsQueue.pop();
+
+        std::vector<Configuration> descendants = getDescendants( *current, 90, 1 );
+
+        for(Configuration child : descendants) 
+        {
+            if ( seen.find(child) == seen.end() ) 
+            {
+                auto iter = std::get<0>(seen.insert(child));
+
+                // Points to configuration saved in seen, not to the temporary one here
+                const Configuration* child_ptr = &(*iter);
+
+                bfsQueue.push(child_ptr);
+            }
+        }
+    }
+
+    int i = 0;
+
+    for ( const Configuration &c : seen ) {
+        std::string fileName = "./configs/" + std::to_string( i ) + ".in";
+        std::cout << fileName << "\n";
+        std::ofstream myFile( fileName );
+        myFile << IO::toString( c ) << "\n";
+        i++;
+    }
+
+    std::cout << seen.size() << "\n"; */
 }
