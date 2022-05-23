@@ -143,16 +143,16 @@ void addModuleToScene( vtkRenderer* renderer, Module& m,
     }
 }
 
-void buildConfigurationScene( vtkRenderer* renderer, Rofibot& bot ) {
-    // get active (i.e. connected) connectors for each module within Rofibot
+void buildConfigurationScene( vtkRenderer* renderer, RofiWorld& world ) {
+    // get active (i.e. connected) connectors for each module within RofiWorld
     std::map< ModuleId, std::set< int > > active_cons;
-    for ( const auto& roficom : bot.roficomConnections() ) {
-        active_cons[ bot.getModule( roficom.sourceModule )->getId() ].insert( roficom.sourceConnector );
-        active_cons[ bot.getModule( roficom.destModule )->getId()   ].insert( roficom.destConnector );
+    for ( const auto& roficom : world.roficomConnections() ) {
+        active_cons[ world.getModule( roficom.sourceModule )->getId() ].insert( roficom.sourceConnector );
+        active_cons[ world.getModule( roficom.destModule )->getId()   ].insert( roficom.destConnector );
     }
 
     int index = 0;
-    for ( auto& mInfo : bot.modules() ) {
+    for ( auto& mInfo : world.modules() ) {
         assert( mInfo.absPosition && "The configuration has to be prepared" );
         if ( !active_cons.contains( mInfo.module->getId() ) )
             active_cons[ mInfo.module->getId() ] = {};
@@ -161,7 +161,7 @@ void buildConfigurationScene( vtkRenderer* renderer, Rofibot& bot ) {
     }
 }
 
-void renderConfiguration( Rofibot configuration, const std::string& configName ) {
+void renderConfiguration( RofiWorld configuration, const std::string& configName ) {
         vtkNew< vtkRenderer > renderer;
     setupRenderer( renderer.Get() );
     buildConfigurationScene( renderer.Get(), configuration );

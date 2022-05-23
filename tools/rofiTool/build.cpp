@@ -5,9 +5,9 @@
 #include <configuration/universalModule.hpp>
 
 static auto command = Dim::Cli().command( "build" )
-    .desc( "Build and show given rofibot" );
+    .desc( "Build and show given world" );
 static auto& botType = command.opt< int >( "<ROFIBOT>" )
-    .desc("Specify wished rofibot: 0 - UM, 1 - UM n pad, 2 - UM n x m pad,"
+    .desc("Specify wished world: 0 - UM, 1 - UM n pad, 2 - UM n x m pad,"
             + std::string( " 3 - RoFiCoM n pad, 4 - RoFiCoM n x m pad" ) );
 
 enum class BotType {
@@ -25,14 +25,14 @@ int readIntWithMsg( const std::string& msg ) {
     return n;
 }
 
-rofi::configuration::Rofibot buildWishedRofibot( BotType botType ) {
+rofi::configuration::RofiWorld buildWishedRofibot( BotType botType ) {
     using namespace rofi::configuration;
-    Rofibot rofibot;
+    RofiWorld world;
     int n, m;
     switch ( botType ) {
         case BotType::UM:
-            rofibot.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
-            return rofibot;
+            world.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
+            return world;
         case BotType::UMpadN:
             n = readIntWithMsg( "Dimension: " );
             return buildUMpad( n );
@@ -42,17 +42,17 @@ rofi::configuration::Rofibot buildWishedRofibot( BotType botType ) {
             return buildUMpad( n, m );
         case BotType::NPad:
             n = readIntWithMsg( "Dimension: " );
-            rofibot.insert( Pad( 0, n ) );
+            world.insert( Pad( 0, n ) );
             break;
         case BotType::NMPad:
             n = readIntWithMsg( "Dimension n: " );
             m = readIntWithMsg( "Dimension m: " );
-            rofibot.insert( Pad( 0, n, m ) );
+            world.insert( Pad( 0, n, m ) );
             break;
         default:
             throw std::runtime_error( "Unknown model" );
     }
-    return rofibot;
+    return world;
 }
 
 std::string botTypeToString( BotType b ) {

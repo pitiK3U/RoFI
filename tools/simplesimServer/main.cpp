@@ -84,7 +84,7 @@ int main( int argc, char * argv[] )
     }
 
     std::cout << "Reading configuration from file (" << *cfgFormat << " format)" << std::endl;
-    auto inputRofibot = simplesim::readAndPrepareConfigurationFromFile( *cfgFilePath, *cfgFormat );
+    auto rofiworld = simplesim::readAndPrepareConfigurationFromFile( *cfgFilePath, *cfgFormat );
 
     auto packetFilter = std::optional< simplesim::packetf::PyFilter >();
     if ( pyPacketFilterFilePath ) {
@@ -97,7 +97,7 @@ int main( int argc, char * argv[] )
 
     // Server setup
     auto server = simplesim::Simplesim(
-            inputRofibot,
+            rofiworld,
             packetFilter
                 ? [ packetFilter = std::move( *packetFilter ) ]( auto packet ) mutable {
                     return packetFilter.filter( std::move( packet ) );
@@ -115,11 +115,11 @@ int main( int argc, char * argv[] )
     std::cout << "Sending configurations on topic '" << configurationPub->GetTopic() << "'\n";
 
     std::cout << "Simulating..." << std::endl;
-    server.run( [ configurationPub ]( std::shared_ptr< const configuration::Rofibot > rofibot ) {
+    server.run( [ configurationPub ]( std::shared_ptr< const configuration::RofiWorld > rofiworld ) {
         assert( configurationPub );
-        assert( rofibot );
+        assert( rofiworld );
         auto message = google::protobuf::StringValue();
-        message.set_value( configuration::serialization::toJSON( *rofibot ).dump() );
+        message.set_value( configuration::serialization::toJSON( *rofiworld ).dump() );
         configurationPub->Publish( message, true );
     } );
 }
