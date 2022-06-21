@@ -1,9 +1,9 @@
 #include <vector>
 #include <set>
-#include <Configuration.h>
+#include "/home/sharpain/RoFI/softwareComponents/configuration/legacy/configuration/Configuration.h"
 #include <map>
-#include <Generators.h>
-#include <IO.h>
+#include "/home/sharpain/RoFI/softwareComponents/configuration/legacy/configuration/Generators.h"
+#include "/home/sharpain/RoFI/softwareComponents/configuration/legacy/configuration/IO.h"
 #include <queue>
 
 class BFSReporter
@@ -34,7 +34,7 @@ class BFSReporter
             pathLength = preds.size();
         }
 
-        void onUpdatePredecessors(std::unordered_map<const Configuration*, const Configuration*>& preds)
+        void onUpdatePredecessors(std::unordered_map<const Configuration*, const Configuration*>&)
         {
             // pass
         }
@@ -52,13 +52,13 @@ class BFSReporter
             seenCfgs = seen.size();
         }
 
-        void onUpdateDistance(std::unordered_map<const Configuration*, int>& distance)
+        void onUpdateDistance(std::unordered_map<const Configuration*, int>&)
         {
             // pass
             
         }
 
-        void onUpdateCurrent(const Configuration& current)
+        void onUpdateCurrent(const Configuration&)
         {
             // pass
         }

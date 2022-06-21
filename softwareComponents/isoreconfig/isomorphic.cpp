@@ -1,22 +1,21 @@
-using ModuleMap = std::unordered_map<ID, Module>;
-using Points = std::vector< std::tuple< double, double, double > >
+#include <configuration/rofibot.hpp>
 
-Points modToPoints( const Module &mod )
+using Positions = std::set< Matrix >;
+
+Positions decomposeRofibot( const Rofibot& rb )
 {
-    Points result;
-    mod.matrices
-}
+    rb.prepare();
+    assert( rb.isValid() );
 
-Points confToPoints( const Configuration &conf )
-{
-    ModuleMap modules = conf.getModules();
-    Points result;
+    Positions result;
 
-    for ( Module &m : modules )
+    for ( ModuleInfo& mod : rb.modules() )
     {
-        
+        for ( const Component& comp : mod.components() )
+        {
+            result.insert( comp.getPosition() );
+        }
     }
-    
+
     return result;
 }
-

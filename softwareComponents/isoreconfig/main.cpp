@@ -1,20 +1,11 @@
 #include "BFS.h"
 #include "dimcli/cli.h"
-
-std::vector<Configuration> getDescendants(const Configuration& current, unsigned int step, unsigned int bound) 
-{
-    // Get possible configurations made from the current one
-    // "1 step" away, ignoring configurations of identical classes
-    // TODO
-
-    std::vector<Configuration> possConfs;
-    next(current, possConfs, step, bound);
-    return possConfs;
-}
+#include "isomorphic.cpp"
+#include <configuration/rofibot.hpp>
 
 int main(int argc, char* argv[]) 
 {
-    Dim::Cli cli;
+    /* Dim::Cli cli;
     auto & startPath = cli.opt<std::string>("start", "./start.in").desc("Starting configuration in valid format");
     auto & targetPath = cli.opt<std::string>("target", "./target.in").desc("Target configuration in valid format");
     auto & step = cli.opt<int>("step", 90).desc("Degree of rotation for 1 step");
@@ -32,7 +23,7 @@ int main(int argc, char* argv[])
     inputStart.open(*startPath);
     if (inputStart.fail()) 
     {
-        std::cerr << "Invalid path to start configuration: " + *startPath "\n";
+        std::cerr << "Invalid path to start configuration: " << *startPath << "\n";
         exit(1);
     }
     if (!IO::readConfiguration(inputStart, start)) 
@@ -74,7 +65,7 @@ int main(int argc, char* argv[])
     // Show BFS stats
     if (*showStats) {
         std::cout << reporter.toString();
-    }
+    } */
 
     // Debugging
     // Prints all possible configurations of given modules
@@ -124,4 +115,18 @@ int main(int argc, char* argv[])
     }
 
     std::cout << seen.size() << "\n"; */
+
+    Rofibot bot;
+    // add universal module with id 42 in the default state
+    auto& m1 = bot.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
+    // add universal module with id 42 with beta set to 45 degrees and gamma to 90 degrees
+    auto& m2 = bot.insert( UniversalModule( 66, 0_deg, 45_deg, 90_deg ) );
+
+    // connect A+X of the universal module with id = 42 to A-X of UM with id = 66
+    connect( m1.connectors()[ 2 ], m2.connectors()[ 0 ], Orientation::North );
+    // fix the position of the `shoe A` in { 0, 0, 0 }
+    connect< RigidJoint >( m1.bodies()[ 0 ], { 0, 0, 0 }, identity );
+
+    decomposeRofibot( bot );
+
 }
