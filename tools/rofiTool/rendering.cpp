@@ -162,9 +162,95 @@ void buildConfigurationScene( vtkRenderer* renderer, Rofibot& bot ) {
 }
 
 void renderConfiguration( Rofibot configuration, const std::string& configName ) {
-        vtkNew< vtkRenderer > renderer;
+    vtkNew< vtkRenderer > renderer;
     setupRenderer( renderer.Get() );
     buildConfigurationScene( renderer.Get(), configuration );
+
+    vtkNew< vtkRenderWindow > renderWindow;
+    renderWindow->AddRenderer( renderer.Get() );
+    renderWindow->SetWindowName( ( "Preview of " + configName ).c_str() );
+
+    // Setup main window loop
+    vtkNew< vtkRenderWindowInteractor > renderWindowInteractor;
+    renderWindowInteractor->SetRenderWindow( renderWindow.Get() );
+
+    vtkNew< vtkAxesActor > axes;
+    vtkNew< vtkOrientationMarkerWidget > widget;
+    widget->SetOutlineColor( 0.9300, 0.5700, 0.1300 );
+    widget->SetOrientationMarker( axes.Get() );
+    widget->SetInteractor( renderWindowInteractor.Get() );
+    widget->SetViewport( 0.0, 0.0, 0.4, 0.4 );
+    widget->SetEnabled( 1 );
+    widget->InteractiveOn();
+
+    // Start main window loop
+    renderWindow->Render();
+    renderWindowInteractor->Start();
+}
+
+void addPointToScene( vtkRenderer* renderer, const Matrix& pointPosition, int pointIndex )
+{
+    auto pointColour = getModuleColor( pointIndex );
+
+    // Matrix cPosition = mPosition * m.getComponentRelativePosition( i );
+
+    auto posTrans = vtkSmartPointer< vtkTransform >::New();
+    posTrans->SetMatrix( convertMatrix( pointPosition ) );
+
+    auto filter = vtkSmartPointer< vtkTransformPolyDataFilter >::New();
+    filter->SetTransform( posTrans );
+
+    // Load blender object
+    auto reader = vtkSmartPointer<vtkOBJReader>::New();
+    ResourceFile modelFile = LOAD_RESOURCE_FILE_LAZY( model_point_obj )();
+    reader->SetFileName( modelFile.name().c_str() );
+    reader->Update();
+
+    auto trans = vtkSmartPointer< vtkTransform >::New();
+    trans->RotateX( 90 );
+    auto t = vtkSmartPointer< vtkTransformPolyDataFilter >::New();
+    t->SetInputConnection( reader->GetOutputPort() );
+    t->SetTransform( trans );
+    t->Update();
+    // End
+
+    filter->SetInputConnection( t->GetOutputPort() );
+
+    auto frameMapper = vtkSmartPointer< vtkPolyDataMapper >::New();
+    frameMapper->SetInputConnection( filter->GetOutputPort() );
+
+    auto frameActor = vtkSmartPointer< vtkActor >::New();
+    frameActor->SetMapper( frameMapper );
+    frameActor->GetProperty()->SetColor( pointColour.data() );
+    frameActor->GetProperty()->SetOpacity( 1.0 );
+    frameActor->GetProperty()->SetFrontfaceCulling( true );
+    frameActor->GetProperty()->SetBackfaceCulling( true );
+    frameActor->SetPosition( pointPosition( 0, 3 ), pointPosition( 1, 3 ), pointPosition( 2, 3 ) );
+    frameActor->SetScale( 1 / 95.0 );
+
+    renderer->AddActor( frameActor );
+}
+
+void buildConfigurationPointsScene( vtkRenderer* renderer, Rofibot& bot ) {
+    // get active (i.e. connected) connectors for each module within Rofibot
+    std::map< ModuleId, std::set< int > > active_cons;
+    for ( const auto& roficom : bot.roficomConnections() ) {
+        active_cons[ bot.getModule( roficom.sourceModule )->getId() ].insert( roficom.sourceConnector );
+        active_cons[ bot.getModule( roficom.destModule )->getId()   ].insert( roficom.destConnector );
+    }
+
+    int index = 0;
+    for ( auto& pointPosition : decomposeRofibot( bot ) )
+    {
+        addPointToScene( renderer, pointPosition, index );
+        ++index;
+    }
+}
+
+void renderPoints( Rofibot configuration, const std::string& configName ) {
+    vtkNew< vtkRenderer > renderer;
+    setupRenderer( renderer.Get() );
+    buildConfigurationPointsScene( renderer.Get(), configuration );
 
     vtkNew< vtkRenderWindow > renderWindow;
     renderWindow->AddRenderer( renderer.Get() );
