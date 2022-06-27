@@ -1,10 +1,26 @@
-#include "BFS.h"
+// #include "BFS.hpp"
 #include "dimcli/cli.h"
-#include "isomorphic.cpp"
+#include "isomorphic.hpp"
 #include <configuration/rofibot.hpp>
+#include <configuration/joints.hpp>
+#include <configuration/universalModule.hpp> 
 
-int main(int argc, char* argv[]) 
+int main(int /*argc*/, char** /*argv[]*/) 
 {
+    Rofibot bot;
+    // add universal module with id 42 in the default state
+    auto& m1 = bot.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
+    // add universal module with id 42 with beta set to 45 degrees and gamma to 90 degrees
+    auto& m2 = bot.insert( UniversalModule( 66, 0_deg, 45_deg, 90_deg ) );
+
+    // connect A+X of the universal module with id = 42 to A-X of UM with id = 66
+    connect( m1.connectors()[ 2 ], m2.connectors()[ 0 ], roficom::Orientation::North );
+    // fix the position of the `shoe A` in { 0, 0, 0 }
+    const auto identity = arma::mat(4, 4, arma::fill::eye);
+    connect< RigidJoint >( m1.bodies()[ 0 ], { 0, 0, 0 }, identity );
+
+    decomposeRofibot( bot );
+
     /* Dim::Cli cli;
     auto & startPath = cli.opt<std::string>("start", "./start.in").desc("Starting configuration in valid format");
     auto & targetPath = cli.opt<std::string>("target", "./target.in").desc("Target configuration in valid format");
@@ -115,18 +131,5 @@ int main(int argc, char* argv[])
     }
 
     std::cout << seen.size() << "\n"; */
-
-    Rofibot bot;
-    // add universal module with id 42 in the default state
-    auto& m1 = bot.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
-    // add universal module with id 42 with beta set to 45 degrees and gamma to 90 degrees
-    auto& m2 = bot.insert( UniversalModule( 66, 0_deg, 45_deg, 90_deg ) );
-
-    // connect A+X of the universal module with id = 42 to A-X of UM with id = 66
-    connect( m1.connectors()[ 2 ], m2.connectors()[ 0 ], Orientation::North );
-    // fix the position of the `shoe A` in { 0, 0, 0 }
-    connect< RigidJoint >( m1.bodies()[ 0 ], { 0, 0, 0 }, identity );
-
-    decomposeRofibot( bot );
 
 }

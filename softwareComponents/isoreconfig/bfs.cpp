@@ -1,4 +1,4 @@
-#include "BFS.h"
+#include "BFS.hpp"
 #include <cassert>
 
 const Configuration getRepre(const Configuration& sample) 
@@ -12,7 +12,6 @@ const Configuration getRepre(const Configuration& sample)
 
 bool equalConfig(const Configuration& first, const Configuration& second) 
 {
-
     // Compare if first and second are equal configurations
     // (they belong to the same isomorphic class)
     // TODO
