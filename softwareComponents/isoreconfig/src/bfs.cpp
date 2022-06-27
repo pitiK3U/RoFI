@@ -1,4 +1,4 @@
-#include "BFS.hpp"
+#include <isoreconfig/BFS.hpp>
 #include <cassert>
 
 const Configuration getRepre(const Configuration& sample) 

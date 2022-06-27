@@ -1,6 +1,7 @@
 // #include "BFS.hpp"
 #include "dimcli/cli.h"
-#include "isomorphic.hpp"
+#include <isoreconfig/BFS.hpp>
+#include <isoreconfig/isomorphic.hpp>
 #include <configuration/rofibot.hpp>
 #include <configuration/joints.hpp>
 #include <configuration/universalModule.hpp> 
