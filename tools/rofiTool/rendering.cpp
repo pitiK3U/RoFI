@@ -188,12 +188,8 @@ void renderConfiguration( Rofibot configuration, const std::string& configName )
     renderWindowInteractor->Start();
 }
 
-void addPointToScene( vtkRenderer* renderer, const Matrix& pointPosition, int pointIndex )
+void addPointToScene( vtkRenderer* renderer, const Matrix& pointPosition, std::array<double,3> colour )
 {
-    auto pointColour = getModuleColor( pointIndex );
-
-    // Matrix cPosition = mPosition * m.getComponentRelativePosition( i );
-
     auto posTrans = vtkSmartPointer< vtkTransform >::New();
     posTrans->SetMatrix( convertMatrix( pointPosition ) );
 
@@ -221,7 +217,7 @@ void addPointToScene( vtkRenderer* renderer, const Matrix& pointPosition, int po
 
     auto frameActor = vtkSmartPointer< vtkActor >::New();
     frameActor->SetMapper( frameMapper );
-    frameActor->GetProperty()->SetColor( pointColour.data() );
+    frameActor->GetProperty()->SetColor( colour.data() );
     frameActor->GetProperty()->SetOpacity( 1.0 );
     frameActor->GetProperty()->SetFrontfaceCulling( true );
     frameActor->GetProperty()->SetBackfaceCulling( true );
@@ -239,12 +235,28 @@ void buildConfigurationPointsScene( vtkRenderer* renderer, Rofibot& bot ) {
         active_cons[ bot.getModule( roficom.destModule )->getId()   ].insert( roficom.destConnector );
     }
 
+    using Matrix = arma::mat44;
+    std::vector< Matrix > configPoints = decomposeRofibot( bot );
+
+    // Show configuration points
     int index = 0;
-    for ( auto& pointPosition : decomposeRofibot( bot ) )
-    {
-        addPointToScene( renderer, pointPosition, index );
-        ++index;
-    }
+    for ( const Matrix& pointPosition : configPoints )
+        addPointToScene( renderer, pointPosition, getModuleColor( index++ ) );
+
+    // Show center of gravity
+    arma::mat center( 4, 4, arma::fill::eye );
+    center.col( 3 ) = getCenter( configPoints );
+    addPointToScene( renderer, center, { 0, 0, 0 } );
+
+    // Show modules 
+    /* index = 0;
+    for ( auto& mInfo : bot.modules() ) {
+        assert( mInfo.absPosition && "The configuration has to be prepared" );
+        if ( !active_cons.contains( mInfo.module->getId() ) )
+            active_cons[ mInfo.module->getId() ] = {};
+        addModuleToScene( renderer, *mInfo.module, *mInfo.absPosition, index, active_cons[ mInfo.module->getId() ] );
+        index++;
+    } */
 }
 
 void renderPoints( Rofibot configuration, const std::string& configName ) {

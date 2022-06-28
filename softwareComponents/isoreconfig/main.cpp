@@ -6,6 +6,8 @@
 #include <configuration/joints.hpp>
 #include <configuration/universalModule.hpp> 
 
+using namespace rofi::configuration;
+
 int main(int /*argc*/, char** /*argv[]*/) 
 {
     Rofibot bot;
