@@ -27,7 +27,7 @@ struct Ip6Addr : ip6_addr_t {
 	}
 
 	Ip6Addr( uint8_t mask ) {
-		mask_to_address( mask, this );
+		// mask_to_address( mask, this );
 	}
 
     bool operator==( const Ip6Addr& o ) const {

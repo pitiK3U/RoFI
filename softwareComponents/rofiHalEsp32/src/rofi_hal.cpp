@@ -419,7 +419,7 @@ private:
     }
 
     static void _csInterruptHandler( void * arg ) {
-        auto *self = reinterpret_cast< ConnectorLocal* >( arg );
+        // auto *self = reinterpret_cast< ConnectorLocal* >( arg );
         // Probably a packet, so try to read it, then check the true reason
         self->_issueReceiveCmd( rtos::ExContext::ISR );
         ets_printf("Interrupted %d\n", self->_cs);

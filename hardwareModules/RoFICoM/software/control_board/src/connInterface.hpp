@@ -60,7 +60,6 @@ private:
                 _reader.readBlock( memory::Pool::allocate( 1 ), 0, 1, _timeout,
                     [&]( Block /**/, int size ) {
                         if ( size == 0 ) {
-                            Dbg::error("I2");
                             _receiveFrame();
                             return;
                         }
@@ -79,19 +78,16 @@ private:
         _reader.readBlock( std::move( buffer ), 0, BLOB_HEADER_SIZE, _timeout,
             [&]( Block b, int size ) {
                 if ( size != BLOB_HEADER_SIZE ) {
-                    Dbg::error("I3, %d", size);
                     _receiveFrame();
                     return;
                 }
                 uint16_t length = blobLen( b );
                 if ( length > BLOB_LIMIT ) {
-                    Dbg::error("I4");
                     _receiveFrame();
                     return;
                 }
                 _reader.readBlock( std::move( b ), BLOB_HEADER_SIZE, length + CRC_SIZE, _timeout,
                     [&]( Block b, int s ) {
-                        Dbg::error("I5");
                         _onNewBlob( std::move( b ), s );
                         _receiveFrame();
                     } );

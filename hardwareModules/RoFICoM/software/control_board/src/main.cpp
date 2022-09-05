@@ -52,6 +52,13 @@ void setupSystemClock() {
     LL_RCC_SetUSARTClockSource( LL_RCC_USART2_CLKSOURCE_PCLK1 );
 }
 
+/* Disable handling uncaught exceptions to save flash space */
+namespace __gnu_cxx {
+    void __verbose_terminate_handler() {
+        for(;;);
+    }
+}
+
 
 using Block = memory::Pool::Block;
 
