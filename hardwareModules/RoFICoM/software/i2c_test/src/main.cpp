@@ -18,11 +18,13 @@
 #include <stm32g0xx_ll_i2c.h>
 
 /* Disable handling uncaught exceptions to save flash space */
+/*
 namespace __gnu_cxx {
     void __verbose_terminate_handler() {
         for(;;);
     }
 }
+*/
 
 void setupSystemClock() {
     LL_FLASH_SetLatency( LL_FLASH_LATENCY_2 );
@@ -128,7 +130,7 @@ int main() {
     const uint32_t slaveAddress = 0x52;
     // Index of Model ID. The result should be 0xEA 
     const uint16_t index = 0x010F;
-    const uint8_t transmitBuffer[2] = { index >> 8, index & 8 };
+    const uint8_t transmitBuffer[2] = { index >> 8, index & 0xFF };
     
     /*
     LL_I2C_SetSlaveAddr( I2C2, slaveAddress );
@@ -153,8 +155,8 @@ int main() {
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
             LL_I2C_TransmitData8( I2C2, transmitBuffer[i] );
+        Dbg::error( "sent %d. byte", i );
         ++i;
-        Dbg::error( "sent %d byte(s)", i );
         }
     }
 
@@ -166,12 +168,12 @@ int main() {
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_RXNE( I2C2 ) ) {
             data = LL_I2C_ReceiveData8( I2C2 );
+            Dbg::error( "I2C received: %d", data );
         }
     }
 
     LL_I2C_ClearFlag_STOP( I2C2 );
 
-    Dbg::error( "I2C received: %d", data );
 
 
     while ( true ) {
