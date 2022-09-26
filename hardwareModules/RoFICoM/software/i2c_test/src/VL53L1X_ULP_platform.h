@@ -60,6 +60,10 @@
 #ifndef _VL53L1X_ULP_PLATFORM_H_
 #define _VL53L1X_ULP_PLATFORM_H_
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #include <stdint.h>
 #include <string.h>
@@ -106,5 +110,9 @@ uint8_t VL53L1X_ULP_WrDWord(uint16_t dev, uint16_t RegisterAdress, uint32_t valu
  */
 
 void VL53L1X_ULP_WaitMs(uint32_t TimeMs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	// _VL53L1X_ULP_PLATFORM_H_
