@@ -68,6 +68,10 @@
 #ifndef VL53L1X_ULP_API_H_
 #define VL53L1X_ULP_API_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "VL53L1X_ULP_platform.h"
 
 #define VL53L1X_ULP_VERSION					"1.0.0"
@@ -415,5 +419,9 @@ uint8_t VL53L1X_ULP_SetSigmaThreshold(
 uint8_t VL53L1X_ULP_GetSigmaThreshold(
 		uint16_t 	 dev,
 		uint16_t 	*p_sigma_mm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
