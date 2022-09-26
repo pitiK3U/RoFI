@@ -41,13 +41,14 @@ target_link_libraries(i2cFirmware
 # target_link_libraries(${PROJECT_NAME}.elf stm32cxx function2)
 # # set_target_properties(${PROJECT_NAME}.elf PROPERTIES CXX_CLANG_TIDY "${DO_CLANG_TIDY}")
 
-# set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
-# set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
-# message(${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
-# add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
-#         COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
-#         COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
-#         COMMENT "Building ${HEX_FILE} \nBuilding ${BIN_FILE}")
+set(EXE_FILE i2cFirmware)
+set(HEX_FILE ${PROJECT_BINARY_DIR}/${EXE_FILE}.hex)
+set(BIN_FILE ${PROJECT_BINARY_DIR}/${EXE_FILE}.bin)
+message(${PROJECT_BINARY_DIR}/${EXE_FILE}.bin)
+add_custom_command(TARGET ${EXE_FILE} POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${EXE_FILE}> ${HEX_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${EXE_FILE}> ${BIN_FILE}
+        COMMENT "Building ${HEX_FILE} \nBuilding ${BIN_FILE}")
 
 # add_custom_target(flash
 #     COMMAND $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/i2c_test/tools/flashAll.sh --format ihex write ${HEX_FILE}

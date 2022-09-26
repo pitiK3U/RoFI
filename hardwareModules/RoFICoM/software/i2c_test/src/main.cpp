@@ -7,8 +7,6 @@
 #include <drivers/gpio.hpp>
 #include <drivers/timer.hpp>
 
-#include <util.hpp>
-
 #include <stm32g0xx_hal.h>
 #include <stm32g0xx_ll_rcc.h>
 #include <stm32g0xx_ll_system.h>
@@ -16,6 +14,8 @@
 #include <stm32g0xx_ll_utils.h>
 
 #include <stm32g0xx_ll_i2c.h>
+
+#include "VL53L1X_ULP_api.h"
 
 /* Disable handling uncaught exceptions to save flash space */
 /*
@@ -126,13 +126,14 @@ int main() {
     timer.enable();
 
     setupI2C();
-
+    
+    /*
     const uint32_t slaveAddress = 0x52;
     // Index of Model ID. The result should be 0xEA 
     const uint16_t index = 0x010F;
     const uint8_t transmitBuffer[2] = { index >> 8, index & 0xFF };
     
-    /*
+    
     LL_I2C_SetSlaveAddr( I2C2, slaveAddress );
 
     LL_I2C_SetTransferRequest( I2C2, LL_I2C_REQUEST_WRITE );
@@ -144,7 +145,7 @@ int main() {
     LL_I2C_TransmitData8( I2C2, index & 8 );
 
     LL_I2C_GenerateStopCondition( I2C2 );
-    */
+    
 
     Dbg::error( "Ready for operation" );
 
@@ -155,26 +156,68 @@ int main() {
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
             LL_I2C_TransmitData8( I2C2, transmitBuffer[i] );
-        Dbg::error( "sent %d. byte", i );
+        Dbg::info( "sent %d. byte", i );
         ++i;
         }
     }
 
     LL_I2C_ClearFlag_STOP( I2C2 );
 
-    LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, 4, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
+    LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, 1, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
 
     uint8_t data = 0;
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_RXNE( I2C2 ) ) {
             data = LL_I2C_ReceiveData8( I2C2 );
-            Dbg::error( "I2C received: %d", data );
+            Dbg::info( "I2C received: %d", data );
         }
     }
 
     LL_I2C_ClearFlag_STOP( I2C2 );
+    */
+
+    /*********************************/
+	/*   VL53L1X ranging variables  */
+	/*********************************/
+
+	uint8_t 				status, loop;
+	uint8_t 				dev;
+	uint16_t 				sensor_id;
 
 
+	/*********************************/
+	/*      Customer platform        */
+	/*********************************/
+
+	/* Default VL53L1X Ultra Low Power I2C address */
+	dev = 0x52;
+
+	/* (Optional) Change I2C address */
+	// status = VL53L1X_ULP_SetI2CAddress(dev, 0x20);
+	// dev = 0x20;
+
+
+	/*********************************/
+	/*   Power on sensor and init    */
+	/*********************************/
+
+	/* (Optional) Check if there is a VL53L1X sensor connected */
+	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
+	if(status || (sensor_id != 0xEACC))
+	{
+		Dbg::error("VL53L1X not detected at requested address\n");
+		return status;
+	}
+
+	/* (Mandatory) Init VL53L1X sensor */
+	status = VL53L1X_ULP_SensorInit(dev);
+	if(status)
+	{
+		Dbg::error("VL53L1X ultra low power Loading failed\n");
+		return status;
+	}
+
+	Dbg::info("VL53L1X ultra low power ready !\n");
 
     while ( true ) {
         if ( Dbg::available() ) {
