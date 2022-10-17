@@ -205,7 +205,7 @@ uint8_t VL53L1X_ULP_SensorInit(
 		else /* Timeout 1000ms reached */
 		{
 			continue_loop = (uint8_t)0;
-			status |= (uint8_t)VL53L1X_ULP_ERROR_TIMEOUT;
+			status |= (uint8_t)1; // REMOVE: VL53L1X_ULP_ERROR_TIMEOUT;
 		}
 		VL53L1X_ULP_WaitMs(1);
 	}while(continue_loop == (uint8_t)1);
@@ -235,7 +235,7 @@ uint8_t VL53L1X_ULP_SensorInit(
 		else /* Timeout 1000ms reached */
 		{
 			continue_loop = (uint8_t)0;
-			status |= (uint8_t)VL53L1X_ULP_ERROR_TIMEOUT;
+			status |= (uint8_t)2; // REMOVE: VL53L1X_ULP_ERROR_TIMEOUT;
 		}
 		VL53L1X_ULP_WaitMs(1);
 	}while(continue_loop == (uint8_t)1);
@@ -247,7 +247,7 @@ uint8_t VL53L1X_ULP_SensorInit(
                         (uint8_t)0x09);
 	status |= VL53L1X_ULP_WrByte(dev, 0x0B, (uint8_t)0);
 	status |= VL53L1X_ULP_WrWord(dev, 0x0024, 0x500);
-	status |= VL53L1X_ULP_WrByte(dev, 0x81, 0b10001010);
+	status |= VL53L1X_ULP_WrByte(dev, 0x81, 0x8a); // 0b10001010);
 	status |= VL53L1X_ULP_WrByte(dev, 0x004B, 0x03);
 
 	/* Set default inter-measurement */
