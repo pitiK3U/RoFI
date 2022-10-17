@@ -16,6 +16,7 @@
 #include <stm32g0xx_ll_i2c.h>
 
 #include "VL53L1X_ULP_api.h"
+#include "VL53L1X_api.h"
 
 /* Disable handling uncaught exceptions to save flash space */
 /*
@@ -102,6 +103,7 @@ void setupI2C() {
     LL_I2C_EnableClockStretching(I2C2);
 }
 
+
 using Block = memory::Pool::Block;
 
 Dbg& dbgInstance() {
@@ -111,6 +113,125 @@ Dbg& dbgInstance() {
         RxOn( GpioB[ 7 ] ),
         Baudrate( 115200 ) );
     return inst;
+}
+
+uint8_t ULPMeasure() {
+    /*********************************/
+	/*   VL53L1X ranging variables  */
+	/*********************************/
+
+	uint8_t 				status;
+	uint8_t 				dev;
+	uint16_t 				sensor_id;
+
+
+	/*********************************/
+	/*      Customer platform        */
+	/*********************************/
+
+	/* Default VL53L1X Ultra Low Power I2C address */
+	dev = 0x52;
+
+    Dbg::info("Debug main start\n");
+
+
+	/*********************************/
+	/*   Power on sensor and init    */
+	/*********************************/
+
+	/* (Optional) Check if there is a VL53L1X sensor connected */
+	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
+	if(status || (sensor_id != 0xEACC))
+	{
+		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
+		return status;
+	}
+
+	/* (Mandatory) Init VL53L1X sensor */
+    // do {
+        status = VL53L1X_ULP_SensorInit(dev);
+        if (status)
+        {
+            Dbg::error("VL53L1X ultra low power Loading failed status: %d\n", status);
+            return status;
+        }
+    // } while (status != VL53L1X_ULP_ERROR_NONE);
+
+
+	Dbg::info("VL53L1X ultra low power ready !\n");
+
+    /*********************************/
+	/*         Ranging loop          */
+	/*********************************/
+
+	// status = VL53L1X_ULP_StartRanging(dev);
+	// if(status)
+	// {
+	// 	Dbg::error("VL53L1X_ULP_StartRanging failed with status %u\n", status);
+    //     return status;
+	// }
+
+	// Dbg::info("Ranging started. Put your hand close to the sensor to generate an interrupt...\n");
+
+
+    // uint8_t ready = 0;
+    // do
+    // {
+    //     VL53L1X_ULP_CheckForDataReady(dev, &ready);
+    //     LL_mDelay(100);
+    // } while (ready != 1);
+    
+    // uint8_t measurement_status;
+    // uint16_t estimated_distance_mm, sigma_mm, signal_kcps, ambient_kcps;
+
+    // /* Dump debug data */
+    // status = VL53L1X_ULP_DumpDebugData(dev, &measurement_status,
+    //                                    &estimated_distance_mm, &sigma_mm, &signal_kcps, &ambient_kcps);
+
+    // /* Print debug data. Measurement status 0 means that a valid target
+    //  * has been detected */
+    // Dbg::info("DEBUG DATA : Status = %2u, Estimated distance = %4u mm, Signal = %6u kcps, Sigma = %3u mm\n",
+    //           measurement_status,
+    //           estimated_distance_mm,
+    //           signal_kcps,
+    //           sigma_mm);
+
+    // status = VL53L1X_ULP_StopRanging(dev);
+
+	// Dbg::info("End of VL53L1X ultra low power demo\n");
+
+    return status;
+
+}
+
+uint8_t ULMeasure() {
+    uint8_t dev = 0x52;
+    uint8_t status;
+
+    uint8_t state;
+    status = VL53L1X_BootState(dev, &state);
+    if (status) {
+        Dbg::error("VL53L1X error booting: %d\n", status);
+        return status;
+    }
+    Dbg::info("VL53L1X boot state: %d\n", state);
+
+    uint16_t sensor_id;
+    status = VL53L1X_GetSensorId(dev, &sensor_id);
+	if(status || (sensor_id != 0xEACC))
+	{
+		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
+		return status;
+	}
+
+    status = VL53L1X_SensorInit(dev);
+    if (status)
+    {
+        Dbg::error("VL53L1X ultra lite power Loading failed status: %d\n", status);
+        return status;
+    }
+
+    return status;
 }
 
 int main() {
@@ -126,100 +247,14 @@ int main() {
     timer.enable();
 
     setupI2C();
-    
-    /*
-    const uint32_t slaveAddress = 0x52;
-    // Index of Model ID. The result should be 0xEA 
-    const uint16_t index = 0x010F;
-    const uint8_t transmitBuffer[2] = { index >> 8, index & 0xFF };
-    
-    
-    LL_I2C_SetSlaveAddr( I2C2, slaveAddress );
 
-    LL_I2C_SetTransferRequest( I2C2, LL_I2C_REQUEST_WRITE );
-    LL_I2C_SetTransferSize( I2C2, 2 );
-
-    LL_I2C_GenerateStartCondition( I2C2 );
-
-    LL_I2C_TransmitData8( I2C2, index >> 8 );
-    LL_I2C_TransmitData8( I2C2, index & 8 );
-
-    LL_I2C_GenerateStopCondition( I2C2 );
-    
-
-    Dbg::error( "Ready for operation" );
-
-    LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, 2, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
-
-    uint8_t i = 0;
-
-    while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
-        if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
-            LL_I2C_TransmitData8( I2C2, transmitBuffer[i] );
-        Dbg::info( "sent %d. byte", i );
-        ++i;
-        }
-    }
-
-    LL_I2C_ClearFlag_STOP( I2C2 );
-
-    LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, 1, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
-
-    uint8_t data = 0;
-    while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
-        if ( LL_I2C_IsActiveFlag_RXNE( I2C2 ) ) {
-            data = LL_I2C_ReceiveData8( I2C2 );
-            Dbg::info( "I2C received: %d", data );
-        }
-    }
-
-    LL_I2C_ClearFlag_STOP( I2C2 );
-    */
-
-    /*********************************/
-	/*   VL53L1X ranging variables  */
-	/*********************************/
-
-	uint8_t 				status, loop;
-	uint8_t 				dev;
-	uint16_t 				sensor_id;
-
-
-	/*********************************/
-	/*      Customer platform        */
-	/*********************************/
-
-	/* Default VL53L1X Ultra Low Power I2C address */
-	dev = 0x52;
-
-	/* (Optional) Change I2C address */
-	// status = VL53L1X_ULP_SetI2CAddress(dev, 0x20);
-	// dev = 0x20;
-
-
-	/*********************************/
-	/*   Power on sensor and init    */
-	/*********************************/
-
-	/* (Optional) Check if there is a VL53L1X sensor connected */
-	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
-	if(status || (sensor_id != 0xEACC))
-	{
-		Dbg::error("VL53L1X not detected at requested address\n");
-		return status;
-	}
-
-	/* (Mandatory) Init VL53L1X sensor */
-	status = VL53L1X_ULP_SensorInit(dev);
-	if(status)
-	{
-		Dbg::error("VL53L1X ultra low power Loading failed\n");
-		return status;
-	}
-
-	Dbg::info("VL53L1X ultra low power ready !\n");
+    ULMeasure();
 
     while ( true ) {
+        // uint16_t sensor_id;
+        // VL53L1X_ULP_GetSensorId(0x52, &sensor_id);
+        // Dbg::info("received: %d", sensor_id);
+
         if ( Dbg::available() ) {
             switch( Dbg::get() ) {
             default:

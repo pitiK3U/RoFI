@@ -58,10 +58,9 @@
 */
 
 #include <stm32g0xx_ll_i2c.h>
+#include <stm32g0xx_ll_utils.h> // LL_mDelay
 
 #include "VL53L1X_ULP_platform.h"
-
-const uint32_t lidarAddress = 0x52;
 
 static uint8_t _I2C_RegisterAdress(const uint32_t slaveAdress, const uint16_t RegisterAdress)
 {
@@ -128,7 +127,7 @@ static uint8_t _I2C_Read(const uint32_t slaveAddress, const uint16_t RegisterAdr
 uint8_t VL53L1X_ULP_RdDWord(uint16_t dev, uint16_t RegisterAdress, uint32_t *value)
 {
 	uint8_t transmitBuffer[4] = { 0, 0, 0, 0 };
-	uint8_t status = _I2C_Read(lidarAddress, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
+	uint8_t status = _I2C_Read(dev, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
 
 	*value = transmitBuffer[0] << 24;
 	*value += transmitBuffer[1] << 16;
@@ -141,7 +140,7 @@ uint8_t VL53L1X_ULP_RdDWord(uint16_t dev, uint16_t RegisterAdress, uint32_t *val
 uint8_t VL53L1X_ULP_RdWord(uint16_t dev, uint16_t RegisterAdress, uint16_t *value)
 {
 	uint8_t transmitBuffer[2] = { 0, 0 };
-	uint8_t status = _I2C_Read(lidarAddress, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
+	uint8_t status = _I2C_Read(dev, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
 
 	*value = transmitBuffer[0] << 8;
 	*value += transmitBuffer[1];
@@ -151,12 +150,12 @@ uint8_t VL53L1X_ULP_RdWord(uint16_t dev, uint16_t RegisterAdress, uint16_t *valu
 
 uint8_t VL53L1X_ULP_RdByte(uint16_t dev, uint16_t RegisterAdress, uint8_t *value)
 {	
-	return _I2C_Read(lidarAddress, RegisterAdress, value, 1);
+	return _I2C_Read(dev, RegisterAdress, value, 1);
 }
 
 uint8_t VL53L1X_ULP_WrByte(uint16_t dev, uint16_t RegisterAdress, uint8_t value)
 {	
-	return _I2C_Write(lidarAddress, RegisterAdress, &value, 1);
+	return _I2C_Write(dev, RegisterAdress, &value, 1);
 }
 
 uint8_t VL53L1X_ULP_WrWord(uint16_t dev, uint16_t RegisterAdress, uint16_t value)
@@ -164,21 +163,17 @@ uint8_t VL53L1X_ULP_WrWord(uint16_t dev, uint16_t RegisterAdress, uint16_t value
 	// uint8_t status = 255;
 	uint8_t transmitBuffer[2] = { value >> 8, value & 0xFF };
 	
-	return _I2C_Write(lidarAddress, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
+	return _I2C_Write(dev, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
 }
 
 uint8_t VL53L1X_ULP_WrDWord(uint16_t dev, uint16_t RegisterAdress, uint32_t value)
 {
 	uint8_t transmitBuffer[4] = { value >> 24, value >> 16, value >> 8, value & 0xFF };
 	
-	return _I2C_Write(lidarAddress, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
+	return _I2C_Write(dev, RegisterAdress, transmitBuffer, sizeof(transmitBuffer));
 }
 
 void VL53L1X_ULP_WaitMs(uint32_t TimeMs)
 {
-	uint8_t status = 255;
-	
-	// To be filled by customer
-	
-	return status;
+	LL_mDelay(TimeMs);
 }
