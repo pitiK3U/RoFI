@@ -1,4 +1,3 @@
-
 #include <system/defer.hpp>
 
 #include <cassert>
@@ -15,8 +14,10 @@
 
 #include <stm32g0xx_ll_i2c.h>
 
-#include "VL53L1X_ULP_api.h"
-#include "VL53L1X_api.h"
+#include <vl53l1_api.h>
+#include <vl53l1_platform.h>
+#include <vl53l1_platform_init.h>
+#include <vl53l1_register_funcs.h>
 
 /* Disable handling uncaught exceptions to save flash space */
 /*
@@ -115,123 +116,287 @@ Dbg& dbgInstance() {
     return inst;
 }
 
-uint8_t ULPMeasure() {
-    /*********************************/
-	/*   VL53L1X ranging variables  */
-	/*********************************/
+// uint8_t Measure() {
+//     /*********************************/
+// 	/*   VL53L1X ranging variables  */
+// 	/*********************************/
 
-	uint8_t 				status;
-	uint8_t 				dev;
-	uint16_t 				sensor_id;
-
-
-	/*********************************/
-	/*      Customer platform        */
-	/*********************************/
-
-	/* Default VL53L1X Ultra Low Power I2C address */
-	dev = 0x52;
-
-    Dbg::info("Debug main start\n");
+// 	uint8_t 				status;
+// 	uint8_t 				dev;
+// 	uint16_t 				sensor_id;
 
 
-	/*********************************/
-	/*   Power on sensor and init    */
-	/*********************************/
+// 	/*********************************/
+// 	/*      Customer platform        */
+// 	/*********************************/
 
-	/* (Optional) Check if there is a VL53L1X sensor connected */
-	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
-	if(status || (sensor_id != 0xEACC))
-	{
-		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
-		return status;
-	}
+// 	/* Default VL53L1X Ultra Low Power I2C address */
+// 	dev = 0x52;
 
-	/* (Mandatory) Init VL53L1X sensor */
-    // do {
-        status = VL53L1X_ULP_SensorInit(dev);
-        if (status)
-        {
-            Dbg::error("VL53L1X ultra low power Loading failed status: %d\n", status);
-            return status;
-        }
-    // } while (status != VL53L1X_ULP_ERROR_NONE);
+//     Dbg::info("Debug main start\n");
 
 
-	Dbg::info("VL53L1X ultra low power ready !\n");
+// 	/*********************************/
+// 	/*   Power on sensor and init    */
+// 	/*********************************/
 
-    /*********************************/
-	/*         Ranging loop          */
-	/*********************************/
+// 	/* (Optional) Check if there is a VL53L1X sensor connected */
+// 	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
+// 	if(status || (sensor_id != 0xEACC))
+// 	{
+// 		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
+// 		return status;
+// 	}
 
-	// status = VL53L1X_ULP_StartRanging(dev);
-	// if(status)
-	// {
-	// 	Dbg::error("VL53L1X_ULP_StartRanging failed with status %u\n", status);
-    //     return status;
-	// }
+// 	/* (Mandatory) Init VL53L1X sensor */
+//     // do {
+//         status = VL53L1X_ULP_SensorInit(dev);
+//         if (status)
+//         {
+//             Dbg::error("VL53L1X ultra low power Loading failed status: %d\n", status);
+//             return status;
+//         }
+//     // } while (status != VL53L1X_ULP_ERROR_NONE);
 
-	// Dbg::info("Ranging started. Put your hand close to the sensor to generate an interrupt...\n");
+
+// 	Dbg::info("VL53L1X ultra low power ready !\n");
+
+//     /*********************************/
+// 	/*         Ranging loop          */
+// 	/*********************************/
+
+// 	// status = VL53L1X_ULP_StartRanging(dev);
+// 	// if(status)
+// 	// {
+// 	// 	Dbg::error("VL53L1X_ULP_StartRanging failed with status %u\n", status);
+//     //     return status;
+// 	// }
+
+// 	// Dbg::info("Ranging started. Put your hand close to the sensor to generate an interrupt...\n");
 
 
-    // uint8_t ready = 0;
-    // do
-    // {
-    //     VL53L1X_ULP_CheckForDataReady(dev, &ready);
-    //     LL_mDelay(100);
-    // } while (ready != 1);
+//     // uint8_t ready = 0;
+//     // do
+//     // {
+//     //     VL53L1X_ULP_CheckForDataReady(dev, &ready);
+//     //     LL_mDelay(100);
+//     // } while (ready != 1);
     
-    // uint8_t measurement_status;
-    // uint16_t estimated_distance_mm, sigma_mm, signal_kcps, ambient_kcps;
+//     // uint8_t measurement_status;
+//     // uint16_t estimated_distance_mm, sigma_mm, signal_kcps, ambient_kcps;
 
-    // /* Dump debug data */
-    // status = VL53L1X_ULP_DumpDebugData(dev, &measurement_status,
-    //                                    &estimated_distance_mm, &sigma_mm, &signal_kcps, &ambient_kcps);
+//     // /* Dump debug data */
+//     // status = VL53L1X_ULP_DumpDebugData(dev, &measurement_status,
+//     //                                    &estimated_distance_mm, &sigma_mm, &signal_kcps, &ambient_kcps);
 
-    // /* Print debug data. Measurement status 0 means that a valid target
-    //  * has been detected */
-    // Dbg::info("DEBUG DATA : Status = %2u, Estimated distance = %4u mm, Signal = %6u kcps, Sigma = %3u mm\n",
-    //           measurement_status,
-    //           estimated_distance_mm,
-    //           signal_kcps,
-    //           sigma_mm);
+//     // /* Print debug data. Measurement status 0 means that a valid target
+//     //  * has been detected */
+//     // Dbg::info("DEBUG DATA : Status = %2u, Estimated distance = %4u mm, Signal = %6u kcps, Sigma = %3u mm\n",
+//     //           measurement_status,
+//     //           estimated_distance_mm,
+//     //           signal_kcps,
+//     //           sigma_mm);
 
-    // status = VL53L1X_ULP_StopRanging(dev);
+//     // status = VL53L1X_ULP_StopRanging(dev);
 
-	// Dbg::info("End of VL53L1X ultra low power demo\n");
+// 	// Dbg::info("End of VL53L1X ultra low power demo\n");
 
-    return status;
+//     return status;
 
-}
+// }
 
-uint8_t ULMeasure() {
-    uint8_t dev = 0x52;
-    uint8_t status;
+VL53L1_Error Measure() {
+    char buf[VL53L1_MAX_STRING_LENGTH];
+    VL53L1_Error status;
+    VL53L1_Dev_t device;
 
-    uint8_t state;
-    status = VL53L1X_BootState(dev, &state);
-    if (status) {
-        Dbg::error("VL53L1X error booting: %d\n", status);
-        return status;
-    }
-    Dbg::info("VL53L1X boot state: %d\n", state);
+    Dbg::info("VL53L1 init start\n");    
 
-    uint16_t sensor_id;
-    status = VL53L1X_GetSensorId(dev, &sensor_id);
-	if(status || (sensor_id != 0xEACC))
-	{
-		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
-		return status;
-	}
-
-    status = VL53L1X_SensorInit(dev);
-    if (status)
-    {
-        Dbg::error("VL53L1X ultra lite power Loading failed status: %d\n", status);
+    status = VL53L1_platform_init( &device, 0x52, VL53L1_I2C, 400 );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Platform init error: %s\n", buf);
         return status;
     }
 
-    return status;
+    uint16_t uid = 0;
+    status = VL53L1_RdWord( &device, 0x010F, &uid );
+    if ( status != VL53L1_ERROR_NONE ) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get UID (0x%X) error %d: %s\n", uid, status, buf);
+        return status;
+    } else if ( uid != 0xEACC ) {
+        Dbg::info("Intial register is not 0xEACC but: 0x%X\n", uid);
+    }
+
+    /*
+    VL53L1_State state;
+    status = VL53L1_GetPalState(&device, &state);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get pal state error: %s\n", buf);
+        return status;
+    } else if (state != VL53L1_STATE_POWERDOWN || state != VL53L1_STATE_IDLE ) {
+        VL53L1_GetPalStateString(state, buf);
+        Dbg::info("Unexpeted pal state: %s\n", buf);
+        return state;
+    }
+    */
+    status = VL53L1_WaitDeviceBooted(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Wait device booted error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_DataInit(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Device data init error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_StaticInit(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Device static init error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info("Device successfully initiliased\n");
+
+    status = VL53L1_PerformRefSpadManagement( &device );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Ref Spad Management error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_PerformOffsetSimpleCalibration(&device, 100);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Offset calibration error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_SetPresetMode(&device, VL53L1_PRESETMODE_AUTONOMOUS);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Set preset mode error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_PerformSingleTargetXTalkCalibration(&device, 100);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Xtalk calibration error %d: %s\n", status, buf);
+        return status;
+    }
+
+    VL53L1_CalibrationData_t calibrationData;
+    status = VL53L1_GetCalibrationData(&device, &calibrationData);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get calibration data error %d: %s\n", status, buf);
+        return status;
+    }
+
+    Dbg::error("Calibration data collected: \n");
+
+
+    uint32_t timing_budget = 0;
+    status = VL53L1_GetMeasurementTimingBudgetMicroSeconds( &device, &timing_budget );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get measurement timing budget error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Measurement timing budget: %d us", timing_budget );
+
+    status = VL53L1_GetInterMeasurementPeriodMilliSeconds( &device, &timing_budget );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get intermeasurement period error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Intermeasument period: %d ms", timing_budget );
+
+
+    /* status = VL53L1_wait_for_test_completion( &device );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Wait for test completion error %d: %s\n", status, buf);
+        return status;
+    } */
+
+    Dbg::info("start measuring\n");
+
+    status = VL53L1_StartMeasurement(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Start measurement error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_WaitMeasurementDataReady( &device );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Wait measurement data ready error %d: %s\n", status, buf);
+        
+        
+    VL53L1_system_control_t data;
+    status =  VL53L1_get_system_control( &device, &data );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get system control error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x", data.system__interrupt_clear, data.system__mode_start );
+
+
+    VL53L1_system_results_t results;
+    VL53L1_get_system_results( &device, &results );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get system results error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Result range status: 0x%x", results.result__range_status );
+        
+        return status;
+    }
+
+    VL53L1_RangingMeasurementData_t rangingMeasurementData;
+    status = VL53L1_GetRangingMeasurementData(&device, &rangingMeasurementData);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get ranging measurement data error %d: %s\n", status, buf);
+        return status;
+    }
+
+    
+    status = VL53L1_ClearInterruptAndStartMeasurement(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Clear interrupt error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_StopMeasurement(&device);
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Stop Measurement error %d: %s\n", status, buf);
+        return status;
+    }
+    
+    Dbg::info("Range status: %d (0 = valid),\nSigma: %d ?? mm,\nRange: %d mm\n",
+        rangingMeasurementData.RangeStatus,
+        rangingMeasurementData.SigmaMilliMeter,
+        rangingMeasurementData.RangeMilliMeter);
+    
+
+   Dbg::info( "End measure()" );
+
+    return VL53L1_ERROR_NONE;
 }
 
 int main() {
@@ -239,21 +404,25 @@ int main() {
     SystemCoreClockUpdate();
     HAL_Init();
 
-    Dbg::error( "Main clock: %d", SystemCoreClock );
+    Dbg::info( "Main clock: %d", SystemCoreClock );
 
     Timer timer( TIM1, FreqAndRes( 1000, 2000 ) );
     auto pwm = timer.pwmChannel( LL_TIM_CHANNEL_CH1 );
     pwm.attachPin( GpioA[ 8 ] );
     timer.enable();
+   
+    Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
+    microTimer.enable();
 
     setupI2C();
 
-    ULMeasure();
+    // LL_mDelay(200);
+
+    Measure();
 
     while ( true ) {
         // uint16_t sensor_id;
         // VL53L1X_ULP_GetSensorId(0x52, &sensor_id);
-        // Dbg::info("received: %d", sensor_id);
 
         if ( Dbg::available() ) {
             switch( Dbg::get() ) {
