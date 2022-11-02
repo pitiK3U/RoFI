@@ -33,11 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _VL53L1_TYPES_H_
 #define _VL53L1_TYPES_H_
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 /** @defgroup porting_type  Basic type definition
  *  @ingroup  api_platform
  *
@@ -115,9 +110,5 @@ typedef signed char int8_t;
  *
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
 typedef uint32_t FixPoint1616_t;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* VL53L1_TYPES_H_ */
