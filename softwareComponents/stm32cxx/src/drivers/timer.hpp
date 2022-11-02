@@ -31,6 +31,10 @@ public:
         LL_TIM_DisableCounter( _periph );
     }
 
+    uint32_t counter() {
+        return LL_TIM_GetCounter( _periph );
+    }
+
     class Pwm {
     public:
         Pwm(): _periph( nullptr ), _channel( 0 ) {};
