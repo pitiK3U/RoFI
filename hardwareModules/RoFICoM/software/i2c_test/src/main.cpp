@@ -116,6 +116,19 @@ Dbg& dbgInstance() {
     return inst;
 }
 
+
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar( int ch )
+#else
+#define PUTCHAR_PROTOTYPE int fputc( int ch, FILE *stream )
+#endif
+
+int _write(int file, char *data, int len ) {
+    Dbg::error("%s", data);
+    return len;
+}
+
+
 // uint8_t Measure() {
 //     /*********************************/
 // 	/*   VL53L1X ranging variables  */
@@ -219,7 +232,7 @@ VL53L1_Error Measure() {
         return status;
     }
 
-    uint16_t uid = 0;
+   /*  uint16_t uid = 0;
     status = VL53L1_RdWord( &device, 0x010F, &uid );
     if ( status != VL53L1_ERROR_NONE ) {
         VL53L1_GetPalErrorString(status, buf);
@@ -227,7 +240,7 @@ VL53L1_Error Measure() {
         return status;
     } else if ( uid != 0xEACC ) {
         Dbg::info("Intial register is not 0xEACC but: 0x%X\n", uid);
-    }
+    } */
 
     /*
     VL53L1_State state;
@@ -262,9 +275,9 @@ VL53L1_Error Measure() {
         Dbg::error("Device static init error %d: %s\n", status, buf);
         return status;
     }
-    Dbg::info("Device successfully initiliased\n");
+    // Dbg::info("Device successfully initiliased\n");
 
-    status = VL53L1_PerformRefSpadManagement( &device );
+/*     status = VL53L1_PerformRefSpadManagement( &device );
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
         Dbg::error("Ref Spad Management error %d: %s\n", status, buf);
@@ -300,10 +313,10 @@ VL53L1_Error Measure() {
         return status;
     }
 
-    Dbg::error("Calibration data collected: \n");
+    Dbg::error("Calibration data collected: \n"); */
 
 
-    uint32_t timing_budget = 0;
+    /* uint32_t timing_budget = 0;
     status = VL53L1_GetMeasurementTimingBudgetMicroSeconds( &device, &timing_budget );
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
@@ -318,17 +331,57 @@ VL53L1_Error Measure() {
         Dbg::error("Get intermeasurement period error %d: %s\n", status, buf);
         return status;
     }
-    Dbg::info( "Intermeasument period: %d ms", timing_budget );
+    Dbg::info( "Intermeasument period: %d ms", timing_budget ); */
 
 
-    /* status = VL53L1_wait_for_test_completion( &device );
+    VL53L1_DistanceModes dist = VL53L1_DISTANCEMODE_LONG;
+    status = VL53L1_SetDistanceMode( &device, dist );
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Wait for test completion error %d: %s\n", status, buf);
+        Dbg::error("Set distance mode error %d: %s\n", status, buf);
         return status;
-    } */
+    }
 
-    Dbg::info("start measuring\n");
+    status = VL53L1_SetMeasurementTimingBudgetMicroSeconds( &device, 50000 );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Set measurement timing budget us error %d: %s\n", status, buf );
+        return status;
+    }
+
+    status = VL53L1_SetInterMeasurementPeriodMilliSeconds( &device, 500 );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Set intermeasurement period ms error %d: %s\n", status, buf );
+        return status;
+    }
+/* 
+    status = VL53L1_GetDistanceMode( &device, &dist );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get distance mode error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Distance mode: %d", dist );
+    
+    VL53L1_PresetModes preset = VL53L1_PRESETMODE_AUTONOMOUS;
+    status = VL53L1_SetPresetMode( &device, preset );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Set preset mode error %d: %s\n", status, buf);
+        return status;
+    }
+
+    status = VL53L1_GetPresetMode( &device, &preset );
+    if (status != VL53L1_ERROR_NONE) {
+        VL53L1_GetPalErrorString(status, buf);
+        Dbg::error("Get preset mode error %d: %s\n", status, buf);
+        return status;
+    }
+    Dbg::info( "Preset mode: %d", dist ); */
+
+
+    // Dbg::info("start measuring\n");
 
     status = VL53L1_StartMeasurement(&device);
     if (status != VL53L1_ERROR_NONE) {
@@ -341,8 +394,8 @@ VL53L1_Error Measure() {
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
         Dbg::error("Wait measurement data ready error %d: %s\n", status, buf);
-        
-        
+             
+/* 
     VL53L1_system_control_t data;
     status =  VL53L1_get_system_control( &device, &data );
     if (status != VL53L1_ERROR_NONE) {
@@ -350,7 +403,10 @@ VL53L1_Error Measure() {
         Dbg::error("Get system control error %d: %s\n", status, buf);
         return status;
     }
-    Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x", data.system__interrupt_clear, data.system__mode_start );
+    Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x\nSys fw enable: %d",
+        data.system__interrupt_clear,
+        data.system__mode_start,
+        data.firmware__enable );
 
 
     VL53L1_system_results_t results;
@@ -361,7 +417,9 @@ VL53L1_Error Measure() {
         return status;
     }
     Dbg::info( "Result range status: 0x%x", results.result__range_status );
-        
+         */
+        Dbg::info( "Measuring finished successfully" );
+
         return status;
     }
 
@@ -410,9 +468,6 @@ int main() {
     auto pwm = timer.pwmChannel( LL_TIM_CHANNEL_CH1 );
     pwm.attachPin( GpioA[ 8 ] );
     timer.enable();
-   
-    Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
-    microTimer.enable();
 
     setupI2C();
 

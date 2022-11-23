@@ -40,6 +40,7 @@
 #include <stm32g0xx_ll_exti.h>
 #include <stm32g0xx_ll_utils.h> // LL_mDelay
 #include <drivers/gpio.hpp>
+#include <drivers/timer.hpp>
 
 #include "vl53l1_platform.h"
 #include <string.h>
@@ -48,6 +49,8 @@
 
 // static Gpio::Pin RS = Gpio( GPIOF )[ 2 ];
 static Gpio::Pin RSTPIN = Gpio( GPIOB )[ 0 ];
+
+Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
 
 VL53L1_Error VL53L1_CommsInitialise(
 	VL53L1_Dev_t *pdev,
@@ -58,6 +61,8 @@ VL53L1_Error VL53L1_CommsInitialise(
 	SUPPRESS_UNUSED_WARNING(comms_type);
 	SUPPRESS_UNUSED_WARNING(comms_speed_khz);
 
+	// Timer for counting us 
+	microTimer.enable();
 	
 	// GPIO Ports Clock Enable 
 	// LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
@@ -218,10 +223,9 @@ VL53L1_Error VL53L1_WaitUs(
 		VL53L1_Dev_t *pdev,
 		int32_t       wait_us) {
 
-	// FIX:
-	uint16_t start = TIM2->CNT;
+	int32_t start = microTimer.counter();
 
-	while((TIM2->CNT - start) < wait_us) {};
+	while( ( microTimer.counter() - start ) < wait_us ) {};
 
 	return VL53L1_ERROR_NONE;
 }
@@ -250,7 +254,7 @@ VL53L1_Error VL53L1_WaitValueMaskEx(
 	if ( status != VL53L1_ERROR_NONE )
 		return status;
 
-	if (timeout_timer >= timeout_ms )
+	if ( timeout_timer >= timeout_ms )
 		status |= VL53L1_ERROR_TIME_OUT;
 
 	return status;

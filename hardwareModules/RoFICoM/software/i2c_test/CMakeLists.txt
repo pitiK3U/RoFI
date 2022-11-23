@@ -31,7 +31,7 @@ target_include_directories(vl53l1_lidar PUBLIC
         vl53l1_lidar/platform/inc)
 target_link_libraries(vl53l1_lidar
         g0_stm32cxx_i2c g0_stm32cxx_gpio)
-target_compile_definitions(vl53l1_lidar PUBLIC VL53L1_DEBUG=1 PAL_EXTENDED=1)
+target_compile_definitions(vl53l1_lidar PUBLIC VL53L1_DEBUG=1 PAL_EXTENDED=1 ) # USE_I2C_2V8=1) # VL53L1_LOG_ENABLE=1)
 
 
 add_stm32_target(
