@@ -7,6 +7,7 @@
 #include <drivers/timer.hpp>
 
 #include <stm32g0xx_hal.h>
+#include <stm32g0xx_hal_i2c.h>
 #include <stm32g0xx_ll_rcc.h>
 #include <stm32g0xx_ll_system.h>
 #include <stm32g0xx_ll_cortex.h>
@@ -16,7 +17,7 @@
 
 #include <vl53l1_api.h>
 #include <vl53l1_platform.h>
-#include <vl53l1_platform_init.h>
+// #include <vl53l1_platform_init.h>
 #include <vl53l1_register_funcs.h>
 
 /* Disable handling uncaught exceptions to save flash space */
@@ -56,6 +57,70 @@ void setupSystemClock() {
     LL_SetSystemCoreClock( 64000000 );
     LL_RCC_SetUSARTClockSource( LL_RCC_USART1_CLKSOURCE_PCLK1 );
     LL_RCC_SetUSARTClockSource( LL_RCC_USART2_CLKSOURCE_PCLK1 );
+}
+
+void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(i2cHandle->Instance==I2C2)
+  {
+  /* USER CODE BEGIN I2C2_MspInit 0 */
+
+  /* USER CODE END I2C2_MspInit 0 */
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**I2C2 GPIO Configuration
+    PA11 [PA9]     ------> I2C2_SCL
+    PA12 [PA10]     ------> I2C2_SDA
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF6_I2C2;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* I2C2 clock enable */
+    __HAL_RCC_I2C2_CLK_ENABLE();
+  /* USER CODE BEGIN I2C2_MspInit 1 */
+
+  /* USER CODE END I2C2_MspInit 1 */
+  }
+}
+
+
+I2C_HandleTypeDef hi2c2;
+
+void HALSetupI2C() {
+    hi2c2.Instance = I2C2;
+    hi2c2.Init.Timing = 0x00303D5B;
+    hi2c2.Init.OwnAddress1 = 0;
+    hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c2.Init.OwnAddress2 = 0;
+    hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+    hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+    {
+        Dbg::error("Hal i2c init error");
+       // Error_Handler();
+    }
+
+    /** Configure Analogue filter
+     */
+    if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+    {
+        Dbg::error("Hal i2c config analog filter error");
+    }
+
+    /** Configure Digital filter
+     */
+    if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
+    {
+        Dbg::error("Hal i2c config digital filter error");
+    }
 }
 
 void setupI2C() {
@@ -225,14 +290,18 @@ VL53L1_Error Measure() {
 
     Dbg::info("VL53L1 init start\n");    
 
-    status = VL53L1_platform_init( &device, 0x52, VL53L1_I2C, 400 );
+    device.I2cDevAddr = 0x52;
+    device.I2cHandle = &hi2c2;
+    device.comms_type = VL53L1_I2C;
+    
+/*     status = VL53L1_platform_init( &device, 0x52, VL53L1_I2C, 400 );
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
         Dbg::error("Platform init error: %s\n", buf);
         return status;
-    }
+    } */
 
-   /*  uint16_t uid = 0;
+   uint16_t uid = 0;
     status = VL53L1_RdWord( &device, 0x010F, &uid );
     if ( status != VL53L1_ERROR_NONE ) {
         VL53L1_GetPalErrorString(status, buf);
@@ -240,7 +309,7 @@ VL53L1_Error Measure() {
         return status;
     } else if ( uid != 0xEACC ) {
         Dbg::info("Intial register is not 0xEACC but: 0x%X\n", uid);
-    } */
+    }
 
     /*
     VL53L1_State state;
@@ -390,6 +459,7 @@ VL53L1_Error Measure() {
         return status;
     }
 
+    while (true) {
     status = VL53L1_WaitMeasurementDataReady( &device );
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
@@ -439,41 +509,48 @@ VL53L1_Error Measure() {
         return status;
     }
 
-    status = VL53L1_StopMeasurement(&device);
+    /* status = VL53L1_StopMeasurement(&device);
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
         Dbg::error("Stop Measurement error %d: %s\n", status, buf);
         return status;
-    }
+    } */
     
     Dbg::info("Range status: %d (0 = valid),\nSigma: %d ?? mm,\nRange: %d mm\n",
         rangingMeasurementData.RangeStatus,
         rangingMeasurementData.SigmaMilliMeter,
         rangingMeasurementData.RangeMilliMeter);
+    }
     
 
-   Dbg::info( "End measure()" );
+    Dbg::info( "End measure()" );
 
     return VL53L1_ERROR_NONE;
 }
 
 int main() {
     setupSystemClock();
+    // SystemClock_Config();
     SystemCoreClockUpdate();
     HAL_Init();
 
     Dbg::info( "Main clock: %d", SystemCoreClock );
 
+    /*
     Timer timer( TIM1, FreqAndRes( 1000, 2000 ) );
     auto pwm = timer.pwmChannel( LL_TIM_CHANNEL_CH1 );
     pwm.attachPin( GpioA[ 8 ] );
     timer.enable();
+    */
 
-    setupI2C();
+    // setupI2C();
+    HAL_I2C_MspInit(&hi2c2);
+    HALSetupI2C();
 
     // LL_mDelay(200);
 
     Measure();
+    //HAL_I2C_MspDeInit(&hi2c2);
 
     while ( true ) {
         // uint16_t sensor_id;
