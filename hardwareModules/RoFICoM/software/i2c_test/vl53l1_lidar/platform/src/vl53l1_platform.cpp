@@ -40,14 +40,15 @@
 #include <stm32g0xx_ll_exti.h>
 #include <stm32g0xx_ll_utils.h> // LL_mDelay
 #include <drivers/gpio.hpp>
+#include <drivers/timer.hpp>
 
 #include "vl53l1_platform.h"
 #include <string.h>
 #include <time.h>
 #include <math.h>
 
-// static Gpio::Pin RS = Gpio( GPIOF )[ 2 ];
-static Gpio::Pin RSTPIN = Gpio( GPIOB )[ 0 ];
+// static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
+static Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
 
 VL53L1_Error VL53L1_CommsInitialise(
 	VL53L1_Dev_t *pdev,
@@ -57,6 +58,8 @@ VL53L1_Error VL53L1_CommsInitialise(
 	SUPPRESS_UNUSED_WARNING(pdev);
 	SUPPRESS_UNUSED_WARNING(comms_type);
 	SUPPRESS_UNUSED_WARNING(comms_speed_khz);
+
+    microTimer.enable();
 
 	
 	// GPIO Ports Clock Enable 
@@ -71,9 +74,10 @@ VL53L1_Error VL53L1_CommsInitialise(
 	LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 	*/
 	// LL_IOP_GRP1_EnableClock( LL_IOP_GRP1_PERIPH_GPIOF );
-	RSTPIN.port().enableClock();
+	/* INTPIN.port().enableClock();
 	LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_0);
-	RSTPIN.setupPPOutput();
+	INTPIN.setupPPOutput();
+	*/
 
 	return VL53L1_ERROR_NONE;
 }
@@ -81,11 +85,13 @@ VL53L1_Error VL53L1_CommsInitialise(
 VL53L1_Error VL53L1_CommsClose(VL53L1_Dev_t *pdev) {
 	SUPPRESS_UNUSED_WARNING(pdev);
 
+	microTimer.disable();
+
 	// Return NRST pin to control of reseting the mcu
 	// LL_GPIO_ResetOutputPin( GPIOF, LL_GPIO_PIN_2 );
     // LL_GPIO_DeInit( GPIOF );
 	// // LL_IOP_GRP1_DisableClock( LL_IOP_GRP1_PERIPH_GPIOF )
-	// RSTPIN.port().disableClock();
+	// INTPIN.port().disableClock();
 
 	return VL53L1_ERROR_NONE;
 }
@@ -218,10 +224,9 @@ VL53L1_Error VL53L1_WaitUs(
 		VL53L1_Dev_t *pdev,
 		int32_t       wait_us) {
 
-	// FIX:
-	uint16_t start = TIM2->CNT;
+	uint16_t start = microTimer.counter();
 
-	while((TIM2->CNT - start) < wait_us) {};
+	while( ( microTimer.counter() - start ) < wait_us ) {};
 
 	return VL53L1_ERROR_NONE;
 }
@@ -261,7 +266,7 @@ VL53L1_Error VL53L1_WaitValueMaskEx(
  */
 
 VL53L1_Error VL53L1_GpioXshutdown( uint8_t value ) {
-	RSTPIN.write( static_cast< bool >( value ) );
+	// INTPIN.write( static_cast< bool >( value ) );
 
 	return VL53L1_ERROR_NONE;
 }

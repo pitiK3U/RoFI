@@ -17,16 +17,7 @@
 #include <vl53l1_api.h>
 #include <vl53l1_platform.h>
 #include <vl53l1_platform_init.h>
-#include <vl53l1_register_funcs.h>
 
-/* Disable handling uncaught exceptions to save flash space */
-/*
-namespace __gnu_cxx {
-    void __verbose_terminate_handler() {
-        for(;;);
-    }
-}
-*/
 
 void setupSystemClock() {
     LL_FLASH_SetLatency( LL_FLASH_LATENCY_2 );
@@ -116,95 +107,6 @@ Dbg& dbgInstance() {
     return inst;
 }
 
-// uint8_t Measure() {
-//     /*********************************/
-// 	/*   VL53L1X ranging variables  */
-// 	/*********************************/
-
-// 	uint8_t 				status;
-// 	uint8_t 				dev;
-// 	uint16_t 				sensor_id;
-
-
-// 	/*********************************/
-// 	/*      Customer platform        */
-// 	/*********************************/
-
-// 	/* Default VL53L1X Ultra Low Power I2C address */
-// 	dev = 0x52;
-
-//     Dbg::info("Debug main start\n");
-
-
-// 	/*********************************/
-// 	/*   Power on sensor and init    */
-// 	/*********************************/
-
-// 	/* (Optional) Check if there is a VL53L1X sensor connected */
-// 	status = VL53L1X_ULP_GetSensorId(dev, &sensor_id);
-// 	if(status || (sensor_id != 0xEACC))
-// 	{
-// 		Dbg::error("VL53L1X not detected at requested address status: %d\n", status);
-// 		return status;
-// 	}
-
-// 	/* (Mandatory) Init VL53L1X sensor */
-//     // do {
-//         status = VL53L1X_ULP_SensorInit(dev);
-//         if (status)
-//         {
-//             Dbg::error("VL53L1X ultra low power Loading failed status: %d\n", status);
-//             return status;
-//         }
-//     // } while (status != VL53L1X_ULP_ERROR_NONE);
-
-
-// 	Dbg::info("VL53L1X ultra low power ready !\n");
-
-//     /*********************************/
-// 	/*         Ranging loop          */
-// 	/*********************************/
-
-// 	// status = VL53L1X_ULP_StartRanging(dev);
-// 	// if(status)
-// 	// {
-// 	// 	Dbg::error("VL53L1X_ULP_StartRanging failed with status %u\n", status);
-//     //     return status;
-// 	// }
-
-// 	// Dbg::info("Ranging started. Put your hand close to the sensor to generate an interrupt...\n");
-
-
-//     // uint8_t ready = 0;
-//     // do
-//     // {
-//     //     VL53L1X_ULP_CheckForDataReady(dev, &ready);
-//     //     LL_mDelay(100);
-//     // } while (ready != 1);
-    
-//     // uint8_t measurement_status;
-//     // uint16_t estimated_distance_mm, sigma_mm, signal_kcps, ambient_kcps;
-
-//     // /* Dump debug data */
-//     // status = VL53L1X_ULP_DumpDebugData(dev, &measurement_status,
-//     //                                    &estimated_distance_mm, &sigma_mm, &signal_kcps, &ambient_kcps);
-
-//     // /* Print debug data. Measurement status 0 means that a valid target
-//     //  * has been detected */
-//     // Dbg::info("DEBUG DATA : Status = %2u, Estimated distance = %4u mm, Signal = %6u kcps, Sigma = %3u mm\n",
-//     //           measurement_status,
-//     //           estimated_distance_mm,
-//     //           signal_kcps,
-//     //           sigma_mm);
-
-//     // status = VL53L1X_ULP_StopRanging(dev);
-
-// 	// Dbg::info("End of VL53L1X ultra low power demo\n");
-
-//     return status;
-
-// }
-
 VL53L1_Error Measure() {
     char buf[VL53L1_MAX_STRING_LENGTH];
     VL53L1_Error status;
@@ -229,19 +131,6 @@ VL53L1_Error Measure() {
         Dbg::info("Intial register is not 0xEACC but: 0x%X\n", uid);
     }
 
-    /*
-    VL53L1_State state;
-    status = VL53L1_GetPalState(&device, &state);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get pal state error: %s\n", buf);
-        return status;
-    } else if (state != VL53L1_STATE_POWERDOWN || state != VL53L1_STATE_IDLE ) {
-        VL53L1_GetPalStateString(state, buf);
-        Dbg::info("Unexpeted pal state: %s\n", buf);
-        return state;
-    }
-    */
     status = VL53L1_WaitDeviceBooted(&device);
     if (status != VL53L1_ERROR_NONE) {
         VL53L1_GetPalErrorString(status, buf);
@@ -263,6 +152,8 @@ VL53L1_Error Measure() {
         return status;
     }
     Dbg::info("Device successfully initiliased\n");
+
+    /* LIDAR CALIBRATION
 
     status = VL53L1_PerformRefSpadManagement( &device );
     if (status != VL53L1_ERROR_NONE) {
@@ -300,7 +191,7 @@ VL53L1_Error Measure() {
         return status;
     }
 
-    Dbg::error("Calibration data collected: \n");
+    Dbg::error("Calibration data collected: \n"); */
 
 
     uint32_t timing_budget = 0;
@@ -328,6 +219,7 @@ VL53L1_Error Measure() {
         return status;
     } */
 
+
     Dbg::info("start measuring\n");
 
     status = VL53L1_StartMeasurement(&device);
@@ -337,48 +229,54 @@ VL53L1_Error Measure() {
         return status;
     }
 
-    status = VL53L1_WaitMeasurementDataReady( &device );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Wait measurement data ready error %d: %s\n", status, buf);
-        
-        
-    VL53L1_system_control_t data;
-    status =  VL53L1_get_system_control( &device, &data );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get system control error %d: %s\n", status, buf);
-        return status;
-    }
-    Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x", data.system__interrupt_clear, data.system__mode_start );
+    while ( true ) {
+        status = VL53L1_WaitMeasurementDataReady( &device );
+        if (status != VL53L1_ERROR_NONE) {
+            VL53L1_GetPalErrorString(status, buf);
+            Dbg::error("Wait measurement data ready error %d: %s\n", status, buf);
+
+            /*
+            VL53L1_system_control_t data;
+            status =  VL53L1_get_system_control( &device, &data );
+            if (status != VL53L1_ERROR_NONE) {
+                VL53L1_GetPalErrorString(status, buf);
+                Dbg::error("Get system control error %d: %s\n", status, buf);
+                return status;
+            }
+            Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x", data.system__interrupt_clear, data.system__mode_start );
 
 
-    VL53L1_system_results_t results;
-    VL53L1_get_system_results( &device, &results );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get system results error %d: %s\n", status, buf);
-        return status;
-    }
-    Dbg::info( "Result range status: 0x%x", results.result__range_status );
-        
-        return status;
-    }
+            VL53L1_system_results_t results;
+            VL53L1_get_system_results( &device, &results );
+            if (status != VL53L1_ERROR_NONE) {
+                VL53L1_GetPalErrorString(status, buf);
+                Dbg::error("Get system results error %d: %s\n", status, buf);
+                return status;
+            }
+            Dbg::info( "Result range status: 0x%x", results.result__range_status ); */
 
-    VL53L1_RangingMeasurementData_t rangingMeasurementData;
-    status = VL53L1_GetRangingMeasurementData(&device, &rangingMeasurementData);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get ranging measurement data error %d: %s\n", status, buf);
-        return status;
-    }
+            return status;
+        }
 
+        VL53L1_RangingMeasurementData_t rangingMeasurementData;
+        status = VL53L1_GetRangingMeasurementData(&device, &rangingMeasurementData);
+        if (status != VL53L1_ERROR_NONE) {
+            VL53L1_GetPalErrorString(status, buf);
+            Dbg::error("Get ranging measurement data error %d: %s\n", status, buf);
+            return status;
+        }
     
-    status = VL53L1_ClearInterruptAndStartMeasurement(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Clear interrupt error %d: %s\n", status, buf);
-        return status;
+        Dbg::error("Range status: %d ,Range: %d mm\n",
+            rangingMeasurementData.RangeStatus,
+            rangingMeasurementData.RangeMilliMeter);
+
+        status = VL53L1_ClearInterruptAndStartMeasurement(&device);
+        if (status != VL53L1_ERROR_NONE) {
+            VL53L1_GetPalErrorString(status, buf);
+            Dbg::error("Clear interrupt error %d: %s\n", status, buf);
+            return status;
+        }
+
     }
 
     status = VL53L1_StopMeasurement(&device);
@@ -387,14 +285,8 @@ VL53L1_Error Measure() {
         Dbg::error("Stop Measurement error %d: %s\n", status, buf);
         return status;
     }
-    
-    Dbg::info("Range status: %d (0 = valid),\nSigma: %d ?? mm,\nRange: %d mm\n",
-        rangingMeasurementData.RangeStatus,
-        rangingMeasurementData.SigmaMilliMeter,
-        rangingMeasurementData.RangeMilliMeter);
-    
 
-   Dbg::info( "End measure()" );
+    Dbg::info( "End measure()" );
 
     return VL53L1_ERROR_NONE;
 }
@@ -405,14 +297,6 @@ int main() {
     HAL_Init();
 
     Dbg::info( "Main clock: %d", SystemCoreClock );
-
-    Timer timer( TIM1, FreqAndRes( 1000, 2000 ) );
-    auto pwm = timer.pwmChannel( LL_TIM_CHANNEL_CH1 );
-    pwm.attachPin( GpioA[ 8 ] );
-    timer.enable();
-   
-    Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
-    microTimer.enable();
 
     setupI2C();
 
