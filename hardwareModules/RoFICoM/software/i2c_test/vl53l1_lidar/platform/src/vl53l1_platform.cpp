@@ -96,6 +96,9 @@ VL53L1_Error VL53L1_CommsClose(VL53L1_Dev_t *pdev) {
 	return VL53L1_ERROR_NONE;
 }
 
+/**
+ * BUG: This is only usefull for `VL53L1_ReadMulti` since this is handled with autoend.
+*/
 static uint8_t _I2C_RegisterAdress(const VL53L1_Dev_t * pdev, const uint16_t RegisterAddress)
 {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
@@ -122,16 +125,21 @@ static uint8_t _I2C_RegisterAdress(const VL53L1_Dev_t * pdev, const uint16_t Reg
 
 VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
-	uint8_t status = _I2C_RegisterAdress( pdev, RegisterAddress);
-	if (status != 0) return status;	
+
+	// NOTE: register address must be sent with data in one transaction 
+	const uint8_t address[2] = {
+		static_cast<uint8_t>( RegisterAddress >> 8 ),
+		static_cast<uint8_t>( RegisterAddress & 0xFF )
+	};
 	
-	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, bufferSize, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
+	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, bufferSize + sizeof( address ), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
     uint8_t i = 0;
 
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
-            LL_I2C_TransmitData8( I2C2, transmitBuffer[i] );
+			uint8_t data = i < 2 ? address[i] : transmitBuffer[i-2];
+            LL_I2C_TransmitData8( I2C2, data );
         ++i;
         }
     }

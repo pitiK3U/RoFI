@@ -266,7 +266,7 @@ VL53L1_Error Measure() {
             return status;
         }
     
-        Dbg::error("Range status: %d ,Range: %d mm\n",
+        Dbg::error("Range status: %d, Range: %d mm\n",
             rangingMeasurementData.RangeStatus,
             rangingMeasurementData.RangeMilliMeter);
 
