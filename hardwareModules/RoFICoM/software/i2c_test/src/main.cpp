@@ -6,6 +6,8 @@
 #include <drivers/gpio.hpp>
 #include <drivers/timer.hpp>
 
+#include <drivers/i2c.hpp>
+
 #include <stm32g0xx_hal.h>
 #include <stm32g0xx_ll_rcc.h>
 #include <stm32g0xx_ll_system.h>
