@@ -99,7 +99,7 @@ VL53L1_Error VL53L1_CommsClose(VL53L1_Dev_t *pdev) {
 /**
  * BUG: This is only usefull for `VL53L1_ReadMulti` since this is handled with autoend.
 */
-static uint8_t _I2C_RegisterAdress(const VL53L1_Dev_t * pdev, const uint16_t RegisterAddress)
+static uint8_t _I2C_RegisterAdress( const VL53L1_Dev_t * pdev, const uint16_t RegisterAddress )
 {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 	const uint8_t address[2] = {
@@ -107,7 +107,7 @@ static uint8_t _I2C_RegisterAdress(const VL53L1_Dev_t * pdev, const uint16_t Reg
 		static_cast<uint8_t>( RegisterAddress & 0xFF )
 	};
 
-	LL_I2C_HandleTransfer(I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, sizeof(address), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
+	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, sizeof(address), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
     uint8_t i = 0;
 
@@ -123,7 +123,7 @@ static uint8_t _I2C_RegisterAdress(const VL53L1_Dev_t * pdev, const uint16_t Reg
 	return 0;
 }
 
-VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize) {
+VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 
 	// NOTE: register address must be sent with data in one transaction 
@@ -149,7 +149,7 @@ VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, u
 	return 0;
 }
 
-VL53L1_Error VL53L1_ReadMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize){
+VL53L1_Error VL53L1_ReadMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 	uint8_t status = _I2C_RegisterAdress( pdev, RegisterAddress );
 	if (status != 0) return status;
@@ -170,19 +170,20 @@ VL53L1_Error VL53L1_ReadMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, ui
 	return 0;
 }
 
-VL53L1_Error VL53L1_WrByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t data) {
-	return VL53L1_WriteMulti( pdev, registerAddress, &data, 1);
+VL53L1_Error VL53L1_WrByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t data ) {
+	return VL53L1_WriteMulti( pdev, registerAddress, &data, 1 );
 }
 
-VL53L1_Error VL53L1_WrWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t data) {
+VL53L1_Error VL53L1_WrWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t data ) {
 	uint8_t transmitBuffer[2] = {
 		static_cast<uint8_t>( data >> 8 ),
 		static_cast<uint8_t>( data & 0xFF )
 	};
 	
-	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer));}
+	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
+}
 
-VL53L1_Error VL53L1_WrDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t data) {
+VL53L1_Error VL53L1_WrDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t data ) {
 	uint8_t transmitBuffer[4] = {
 		static_cast<uint8_t>( data >> 24 ),
 		static_cast<uint8_t>( data >> 16 ),
@@ -190,19 +191,19 @@ VL53L1_Error VL53L1_WrDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint
 		static_cast<uint8_t>( data & 0xFF )
 	};
 	
-	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer));
+	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
 }
 
-VL53L1_Error VL53L1_RdByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *data) {
-	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, data, 1);
+VL53L1_Error VL53L1_RdByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t * data ) {
+	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, data, 1 );
 	
 	return status;
 }
 
-VL53L1_Error VL53L1_RdWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t *data) {
+VL53L1_Error VL53L1_RdWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t * data ) {
 	uint16_t slaveAddress = pdev->i2c_slave_address;
-	uint8_t transmitBuffer[2] = { 0, 0, };
-	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer));
+	uint8_t transmitBuffer[2] = { 0, 0 };
+	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
 
 	*data = transmitBuffer[0] << 8;
 	*data += transmitBuffer[1];
@@ -210,7 +211,7 @@ VL53L1_Error VL53L1_RdWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint1
 	return status;
 }
 
-VL53L1_Error VL53L1_RdDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t *data) {
+VL53L1_Error VL53L1_RdDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t * data) {
 	uint8_t transmitBuffer[4] = { 0, 0, 0, 0 };
 	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer));
 

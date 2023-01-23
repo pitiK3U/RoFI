@@ -70,6 +70,24 @@ struct Gpio: public Peripheral< GPIO_TypeDef >, public detail::Gpio< Gpio > {
             return *this;
         }
 
+        Pin& setupODAlternate( bool pull, bool pull_up = true ) {
+            port().enableClock();
+
+            LL_GPIO_InitTypeDef cfg = { };
+
+            cfg.Pin = 1 << _pos;
+            cfg.Mode = LL_GPIO_MODE_ALTERNATE;
+            cfg.Speed = LL_GPIO_SPEED_FREQ_LOW;
+            cfg.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
+            cfg.Pull = !pull ?
+                LL_GPIO_PULL_NO :
+                pull_up ? LL_GPIO_PULL_UP : LL_GPIO_PULL_DOWN;
+            cfg.Alternate = LL_GPIO_AF_6;
+            LL_GPIO_Init( _periph, &cfg );
+
+            return *this;
+        }
+
         Pin& setupInput( bool pull, bool pull_up = true ) {
             port().enableClock();
             LL_GPIO_InitTypeDef cfg{};
