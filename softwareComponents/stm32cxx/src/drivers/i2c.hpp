@@ -1,16 +1,32 @@
 #pragma once
 
-#include <system/assert.hpp>
-#include <functional>
 #include <array>
+#include <cstdint>
+#include <functional>
+
+#include <system/assert.hpp>
 
 #include <drivers/peripheral.hpp>
 #include <drivers/gpio.hpp>
 
 #include <stm32g0xx_ll_i2c.h>
 
+
+// TODO: rework Pin types to be avoid being interchangable
+struct SdaPin : public Gpio::Pin
+{
+    SdaPin( Gpio::Pin pin )
+        : Gpio::Pin( pin ) {}
+};
+
+struct SclPin : public Gpio::Pin
+{
+    SclPin( Gpio::Pin pin )
+        : Gpio::Pin( pin ) {}
+};
+
 struct I2C: public Peripheral< I2C_TypeDef > {
-    I2C( I2C_TypeDef *i2c, Gpio::Pin sdaPin, Gpio::Pin sclPin )
+    I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
         : Peripheral< I2C_TypeDef >( i2c )
     {
         sdaPin.setupODAlternate( true );
@@ -75,5 +91,6 @@ struct I2C: public Peripheral< I2C_TypeDef > {
     }
 
 private:
-    
+
 };
+
