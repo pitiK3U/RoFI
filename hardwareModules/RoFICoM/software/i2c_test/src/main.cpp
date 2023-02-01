@@ -1,5 +1,8 @@
 #include <system/defer.hpp>
 
+#include <atoms/result.hpp>
+// #include <atoms/util.hpp>
+
 #include <cassert>
 #include <system/dbg.hpp>
 #include <drivers/clock.hpp>
@@ -7,6 +10,8 @@
 #include <drivers/timer.hpp>
 
 #include <drivers/i2c.hpp>
+
+#include <lidar.hpp>
 
 #include <stm32g0xx_hal.h>
 #include <stm32g0xx_ll_rcc.h>
@@ -66,7 +71,7 @@ void setupI2C() {
     GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
     GPIO_InitStruct.Alternate = LL_GPIO_AF_6;
     LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
+
     GPIO_InitStruct.Pin = LL_GPIO_PIN_12;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
     GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
@@ -74,7 +79,7 @@ void setupI2C() {
     GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
     GPIO_InitStruct.Alternate = LL_GPIO_AF_6;
     LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
+
     /* Peripheral clock enable */
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
 
@@ -109,188 +114,54 @@ Dbg& dbgInstance() {
     return inst;
 }
 
-VL53L1_Error Measure() {
-    char buf[VL53L1_MAX_STRING_LENGTH];
-    VL53L1_Error status;
-    VL53L1_Dev_t device;
+// Helper class for printing error on `Result<Void, std::string>`
+class PrintError {
+    public:
+        void operator()( std::true_type, auto ) { }
+        void operator()( std::false_type, const std::string& error ) { Dbg::error( error.c_str() ); }
+};
 
-    Dbg::info("VL53L1 init start\n");    
+void LidarMeasure() {
+    Lidar lidar( I2C( I2C2, SdaPin( GpioA[ 12 ] ), SclPin( GpioA[ 11 ] ) ) );
 
-    status = VL53L1_platform_init( &device, 0x52, VL53L1_I2C, 400 );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Platform init error: %s\n", buf);
-        return status;
-    }
-
-    uint16_t uid = 0;
-    status = VL53L1_RdWord( &device, 0x010F, &uid );
-    if ( status != VL53L1_ERROR_NONE ) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get UID (0x%X) error %d: %s\n", uid, status, buf);
-        return status;
-    } else if ( uid != 0xEACC ) {
-        Dbg::info("Intial register is not 0xEACC but: 0x%X\n", uid);
-    }
-
-    status = VL53L1_WaitDeviceBooted(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Wait device booted error %d: %s\n", status, buf);
-        return status;
-    }
-
-    status = VL53L1_DataInit(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Device data init error %d: %s\n", status, buf);
-        return status;
-    }
-
-    status = VL53L1_StaticInit(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Device static init error %d: %s\n", status, buf);
-        return status;
-    }
-    Dbg::info("Device successfully initiliased\n");
-
-    /* LIDAR CALIBRATION
-
-    status = VL53L1_PerformRefSpadManagement( &device );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Ref Spad Management error %d: %s\n", status, buf);
-        return status;
-    }
-
-    status = VL53L1_PerformOffsetSimpleCalibration(&device, 100);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Offset calibration error %d: %s\n", status, buf);
-        return status;
-    }
-
-    status = VL53L1_SetPresetMode(&device, VL53L1_PRESETMODE_AUTONOMOUS);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Set preset mode error %d: %s\n", status, buf);
-        return status;
-    }
-
-    status = VL53L1_PerformSingleTargetXTalkCalibration(&device, 100);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Xtalk calibration error %d: %s\n", status, buf);
-        return status;
-    }
-
-    VL53L1_CalibrationData_t calibrationData;
-    status = VL53L1_GetCalibrationData(&device, &calibrationData);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get calibration data error %d: %s\n", status, buf);
-        return status;
-    }
-
-    Dbg::error("Calibration data collected: \n"); */
-
-
-    uint32_t timing_budget = 0;
-    status = VL53L1_GetMeasurementTimingBudgetMicroSeconds( &device, &timing_budget );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get measurement timing budget error %d: %s\n", status, buf);
-        return status;
-    }
-    Dbg::info( "Measurement timing budget: %d us", timing_budget );
-
-    status = VL53L1_GetInterMeasurementPeriodMilliSeconds( &device, &timing_budget );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Get intermeasurement period error %d: %s\n", status, buf);
-        return status;
-    }
-    Dbg::info( "Intermeasument period: %d ms", timing_budget );
-
-
-    /* status = VL53L1_wait_for_test_completion( &device );
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Wait for test completion error %d: %s\n", status, buf);
-        return status;
-    } */
-
+    Dbg::info("VL53L1 init start\n");
+    PrintError printError;
+    lidar.initialize().match( printError );
 
     Dbg::info("start measuring\n");
 
-    status = VL53L1_StartMeasurement(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Start measurement error %d: %s\n", status, buf);
-        return status;
-    }
+    lidar.startMeasurement().match( printError );
 
     while ( true ) {
-        status = VL53L1_WaitMeasurementDataReady( &device );
-        if (status != VL53L1_ERROR_NONE) {
-            VL53L1_GetPalErrorString(status, buf);
-            Dbg::error("Wait measurement data ready error %d: %s\n", status, buf);
-
-            /*
-            VL53L1_system_control_t data;
-            status =  VL53L1_get_system_control( &device, &data );
-            if (status != VL53L1_ERROR_NONE) {
-                VL53L1_GetPalErrorString(status, buf);
-                Dbg::error("Get system control error %d: %s\n", status, buf);
-                return status;
-            }
-            Dbg::info( "Sys int clear: 0x%x\nSys mode start: 0x%x", data.system__interrupt_clear, data.system__mode_start );
-
-
-            VL53L1_system_results_t results;
-            VL53L1_get_system_results( &device, &results );
-            if (status != VL53L1_ERROR_NONE) {
-                VL53L1_GetPalErrorString(status, buf);
-                Dbg::error("Get system results error %d: %s\n", status, buf);
-                return status;
-            }
-            Dbg::info( "Result range status: 0x%x", results.result__range_status ); */
-
-            return status;
+        auto ready = lidar.waitMeasurementDataReady();
+        if ( !ready ) {
+            ready.match( printError );
+            break;
         }
 
-        VL53L1_RangingMeasurementData_t rangingMeasurementData;
-        status = VL53L1_GetRangingMeasurementData(&device, &rangingMeasurementData);
-        if (status != VL53L1_ERROR_NONE) {
-            VL53L1_GetPalErrorString(status, buf);
-            Dbg::error("Get ranging measurement data error %d: %s\n", status, buf);
-            return status;
-        }
-    
-        Dbg::error("Range status: %d, Range: %d mm\n",
-            rangingMeasurementData.RangeStatus,
-            rangingMeasurementData.RangeMilliMeter);
-
-        status = VL53L1_ClearInterruptAndStartMeasurement(&device);
-        if (status != VL53L1_ERROR_NONE) {
-            VL53L1_GetPalErrorString(status, buf);
-            Dbg::error("Clear interrupt error %d: %s\n", status, buf);
-            return status;
+        auto rangingMeasurementData = lidar.getRangingMeasurementData();
+        if ( !rangingMeasurementData ) {
+            rangingMeasurementData.match( printError );
+            break;
         }
 
+        Dbg::info("Range status: %d, Range: %d mm\n",
+            rangingMeasurementData->RangeStatus,
+            rangingMeasurementData->RangeMilliMeter);
+
+        ready = lidar.clearInterruptAndStartMeasurement();
+        if ( !ready ) {
+            ready.match( printError );
+            break;
+        }
     }
 
-    status = VL53L1_StopMeasurement(&device);
-    if (status != VL53L1_ERROR_NONE) {
-        VL53L1_GetPalErrorString(status, buf);
-        Dbg::error("Stop Measurement error %d: %s\n", status, buf);
-        return status;
+    auto ready = lidar.stopMeasurement();
+    if ( !ready ) {
+        ready.match( printError );
     }
 
     Dbg::info( "End measure()" );
-
-    return VL53L1_ERROR_NONE;
 }
 
 int main() {
@@ -300,11 +171,9 @@ int main() {
 
     Dbg::info( "Main clock: %d", SystemCoreClock );
 
-    setupI2C();
-
     // LL_mDelay(200);
 
-    Measure();
+    LidarMeasure();
 
     while ( true ) {
         // uint16_t sensor_id;
