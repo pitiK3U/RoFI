@@ -12,25 +12,46 @@
 #include <stm32g0xx_ll_i2c.h>
 
 
-// TODO: rework Pin types to be avoid being interchangable
-struct SdaPin : public Gpio::Pin
+struct I2CPin : public Gpio::Pin
 {
-    SdaPin( Gpio::Pin pin )
-        : Gpio::Pin( pin ) {}
+    I2CPin( Gpio::Pin&& pin ) : Gpio::Pin( pin ) {}
+
+    I2CPin& setupODAlternate( ) {
+        setupODOutput( true );
+
+        auto pin = 1 << _pos;
+        assert( 0 <= pin && pin <= 15 );
+
+        LL_GPIO_SetPinMode( _periph, pin, LL_GPIO_MODE_ALTERNATE );
+
+        // TODO: create i2c.port.hpp file for setting up alternate function
+        auto alternateFunction = LL_GPIO_AF_6;
+        if ( pin <= 7 ) {
+            LL_GPIO_SetAFPin_0_7( _periph, pin, alternateFunction );
+        } else {
+            LL_GPIO_SetAFPin_8_15( _periph, pin, alternateFunction );
+        }
+
+        return *this;
+    }
 };
 
-struct SclPin : public Gpio::Pin
+struct SdaPin : public I2CPin
 {
-    SclPin( Gpio::Pin pin )
-        : Gpio::Pin( pin ) {}
+    using I2CPin::I2CPin;
+};
+
+struct SclPin : public I2CPin
+{
+    using I2CPin::I2CPin;
 };
 
 struct I2C: public Peripheral< I2C_TypeDef > {
     I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
         : Peripheral< I2C_TypeDef >( i2c )
     {
-        sdaPin.setupODAlternate( true );
-        sclPin.setupODAlternate( true );
+        sdaPin.setupODAlternate();
+        sclPin.setupODAlternate();
 
         // enableClock();
         LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
