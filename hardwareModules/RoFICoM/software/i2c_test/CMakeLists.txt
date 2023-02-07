@@ -14,31 +14,12 @@ set(ROFICOM_MCU "STM32G071xx")
 set(ROFICOM_MCU_SPEC "STM32G071GBUx")
 
 file(GLOB_RECURSE SRC src/*.cpp src/*.c)
-file(GLOB_RECURSE LIDAR vl53l1_lidar/*.cpp vl53l1_lidar/*.c)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=5")
 
 # setup_stm32cxx("g0" ${ROFICOM_MCU} ${ROFICOM_MCU_SPEC})
 
-# add_subdirectory( vl53l1_lidar )
-
-add_stm32_target(
-        LIB
-        TARGET vl53l1_lidar
-        LIBTYPE STATIC
-        MCU ${ROFICOM_MCU}
-        MCU_SPEC ${ROFICOM_MCU_SPEC}
-        LINKER_SCRIPT $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/i2c_test/stm32/STM32G071GBUx_FLASH.ld
-        FILES ${LIDAR})
-target_include_directories(vl53l1_lidar PUBLIC
-        vl53l1_lidar/
-        vl53l1_lidar/core/inc
-        vl53l1_lidar/platform/inc)
-target_link_libraries(vl53l1_lidar
-        g0_stm32cxx_i2c g0_stm32cxx_gpio
-        atoms)
-target_compile_definitions(vl53l1_lidar PUBLIC VL53L1_DEBUG=1 PAL_EXTENDED=1)
-
+add_subdirectory( vl53l1_lidar )
 
 add_stm32_target(
         EXECUTABLE
@@ -54,7 +35,7 @@ target_compile_options(i2cFirmware PRIVATE
 target_link_libraries(i2cFirmware
         g0_startup function2 g0_stm32cxx g0_HAL_CRC
         g0_stm32cxx_system g0_stm32cxx_i2c g0_stm32cxx_uart g0_stm32cxx_gpio
-        g0_stm32cxx_dma g0_stm32cxx_timer vl53l1_lidar)
+        g0_stm32cxx_dma g0_stm32cxx_timer lidar atoms)
 
 # add_executable(${PROJECT_NAME}.elf ${SRC})
 # set_property(TARGET ${PROJECT_NAME}.elf PROPERTY CXX_STANDARD 17)
