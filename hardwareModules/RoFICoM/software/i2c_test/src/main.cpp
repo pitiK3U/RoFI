@@ -121,7 +121,7 @@ class PrintError {
         void operator()( std::false_type, const std::string& error ) { Dbg::error( error.c_str() ); }
 };
 
-void LidarMeasure() {
+void lidarMeasure() {
     Lidar lidar( I2C( I2C2, SdaPin( GpioA[ 12 ] ), SclPin( GpioA[ 11 ] ) ) );
 
     Dbg::info("VL53L1 init start\n");
@@ -173,7 +173,7 @@ int main() {
 
     // LL_mDelay(200);
 
-    LidarMeasure();
+    lidarMeasure();
 
     while ( true ) {
         // uint16_t sensor_id;

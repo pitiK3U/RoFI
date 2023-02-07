@@ -114,6 +114,7 @@ struct Lidar
     }
 
 private:
+    // TODO: find alternative to `std::string`
     std::string errorToString( VL53L1_Error err )
     {
         char buf[VL53L1_MAX_STRING_LENGTH] = {};
