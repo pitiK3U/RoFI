@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-#include <stdio.h>
+#include <string_view>
 
 #include <atoms/result.hpp>
 
@@ -12,6 +11,8 @@
 #include <vl53l1_platform.h>
 #include <vl53l1_platform_init.h>
 
+
+
 struct Lidar
 {
     using Void = atoms::Void;
@@ -19,23 +20,36 @@ struct Lidar
     template< typename T, typename E = std::string >
     using Result = atoms::Result< T, E >;
 
-    using result_type = Result< Void >;
+    using result_type = Result< Void, std::string_view >;
 
     Lidar( I2C i2c, const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
         : _i2c( std::move( i2c ) )
         , _deviceAddress( deviceAddress )
         , _communicationSpeed( commSpeed )
     {
+        // As mentioned in datasheet VL53L1X has maximum speed of 400 kbits/s
+        assert( commSpeed <= 400 );
+    }
 
+    ~Lidar()
+    {
+        VL53L1_platform_terminate( &_device );
     }
 
     result_type initialize()
     {
         VL53L1_Error status;
 
-        status = VL53L1_platform_init( &_device, _deviceAddress, VL53L1_I2C, _communicationSpeed );
-        if (status != VL53L1_ERROR_NONE) {
+        status = VL53L1_platform_init( &_device, _defaultAddress, VL53L1_I2C, _communicationSpeed );
+        if ( status != VL53L1_ERROR_NONE ) {
             return result_type::error( errorToString( status ) );
+        }
+
+        if ( _deviceAddress != _defaultAddress ) {
+            status = VL53L1_SetDeviceAddress( &_device, _deviceAddress );
+            if ( status != VL53L1_ERROR_NONE ) {
+                return result_type::error( errorToString( status ) );
+            }
         }
 
         status = VL53L1_WaitDeviceBooted( &_device );
@@ -91,6 +105,17 @@ struct Lidar
         return atoms::make_result_value< Void >();
     }
 
+    Result< bool, std::string_view > getMeasurementDataReady()
+    {
+        uint8_t ready;
+        VL53L1_Error status = VL53L1_GetMeasurementDataReady( &_device, &ready );
+        if ( status != VL53L1_ERROR_NONE ) {
+            return Result< bool, std::string_view >::error( errorToString( status ) );
+        }
+
+        return atoms::make_result_value< bool >( bool(ready) );
+    }
+
     result_type clearInterruptAndStartMeasurement()
     {
         VL53L1_Error status = VL53L1_ClearInterruptAndStartMeasurement( &_device );
@@ -101,7 +126,7 @@ struct Lidar
         return atoms::make_result_value< Void >();
     }
 
-    Result< VL53L1_RangingMeasurementData_t, std::string> getRangingMeasurementData()
+    Result< VL53L1_RangingMeasurementData_t, std::string_view > getRangingMeasurementData()
     {
         VL53L1_RangingMeasurementData_t rangingMeasurementData;
 
@@ -114,18 +139,14 @@ struct Lidar
     }
 
 private:
-    // TODO: find alternative to `std::string`
-    std::string errorToString( VL53L1_Error err )
-    {
-        char buf[VL53L1_MAX_STRING_LENGTH] = {};
-        VL53L1_GetPalErrorString( err, buf );
-        return std::string( buf, strlen( buf ) );
-    }
+    std::string_view errorToString( VL53L1_Error err );
 
     I2C _i2c;
     VL53L1_Dev_t _device;
 
-    const uint32_t _deviceAddress;
-    const uint32_t _communicationSpeed;
+    uint32_t _deviceAddress;
+    uint32_t _communicationSpeed;
+
+    const uint32_t _defaultAddress = 0x52;
 };
 

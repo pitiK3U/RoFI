@@ -28,6 +28,6 @@ target_include_directories(lidar PUBLIC
         ./core/inc
         ./platform/inc)
 target_link_libraries(lidar
-        g0_stm32cxx_i2c g0_stm32cxx_gpio)
+        g0_stm32cxx_i2c g0_stm32cxx_gpio atoms)
 target_compile_definitions(lidar PUBLIC VL53L1_DEBUG=1 PAL_EXTENDED=1)
 
