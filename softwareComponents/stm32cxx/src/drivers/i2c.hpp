@@ -19,9 +19,9 @@ struct I2CPin : public Gpio::Pin
     I2CPin& setupODAlternate( ) {
         setupODOutput( true );
 
-        auto pin = 1 << _pos;
-        assert( 0 <= pin && pin <= 15 );
+        assert( 0 <= _pos && _pos <= 15 );
 
+        auto pin = 1 << _pos;
         LL_GPIO_SetPinMode( _periph, pin, LL_GPIO_MODE_ALTERNATE );
 
         // TODO: create i2c.port.hpp file for setting up alternate function
@@ -53,12 +53,13 @@ struct I2C: public Peripheral< I2C_TypeDef > {
         sdaPin.setupODAlternate();
         sclPin.setupODAlternate();
 
-        // enableClock();
+        // TODO: enableClock();
         LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
 
         LL_I2C_InitTypeDef I2C_InitStruct = { };
 
         I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
+        // TODO: set speed
         // This parameter is computed by STM32cubemx tool
         I2C_InitStruct.Timing = 0x00303D5B;
         I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
