@@ -33,22 +33,36 @@
 * 
 */
 
+#include <array>
 #include <functional>
 
 #include <stm32g0xx_ll_i2c.h>
 #include <stm32g0xx_ll_gpio.h>
 #include <stm32g0xx_ll_exti.h>
 #include <stm32g0xx_ll_utils.h> // LL_mDelay
+
 #include <drivers/gpio.hpp>
+#include <drivers/i2c.hpp>
 #include <drivers/timer.hpp>
 
 #include "vl53l1_platform.h"
+
 #include <string.h>
 #include <time.h>
 #include <math.h>
 
+#include <lidar.hpp>
+
+// Anonymous namespace is to hide symbols only into this compilation unit.
+namespace {
 // static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
 static Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
+I2C* pI2c = nullptr;
+}
+
+void _inner::initialize_platform( I2C* i2cPeriph ) {
+	pI2c = i2cPeriph;
+}
 
 VL53L1_Error VL53L1_CommsInitialise(
 	VL53L1_Dev_t *pdev,
@@ -123,6 +137,41 @@ static uint8_t _I2C_RegisterAdress( const VL53L1_Dev_t * pdev, const uint16_t Re
 	return 0;
 }
 
+template< std::size_t N >
+static VL53L1_Error _WriteMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
+	const uint16_t slaveAddress = pdev->i2c_slave_address;
+
+	// NOTE: register address must be sent with data in one transaction 
+	const uint8_t address[2] = {
+		static_cast<uint8_t>( registerAddress >> 8 ),
+		static_cast<uint8_t>( registerAddress & 0xFF )
+	};
+
+	std::array< uint8_t, sizeof( address ) + N > buffer = { address[0], address[1] };
+	std::copy( transmitBuffer, transmitBuffer + N, std::next( buffer.begin(), sizeof( address ) ) );
+
+	assert( pI2c );
+
+	pI2c->write( slaveAddress, buffer );
+
+	return 0;
+}
+
+template< std::size_t N >
+static VL53L1_Error _ReadMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
+	const uint16_t slaveAddress = pdev->i2c_slave_address;
+
+	_WriteMulti< 0 >( pdev, registerAddress, nullptr );
+
+	assert( pI2c );
+	auto result = pI2c->read< std::array< uint8_t, N > >( slaveAddress, N );
+	std::copy( result.begin(), result.end(), transmitBuffer );
+
+	return 0;
+}
+
+// FIX: `VL53L1_WriteMulti` and `VL53L1_ReadMulti` are C function thus they are declared to use runtime transfer size.
+// 		However the I2C driver uses compile time size to enure enough data can be hold with type safety.
 VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 
@@ -131,7 +180,7 @@ VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, u
 		static_cast<uint8_t>( RegisterAddress >> 8 ),
 		static_cast<uint8_t>( RegisterAddress & 0xFF )
 	};
-	
+
 	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, bufferSize + sizeof( address ), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
     uint8_t i = 0;
@@ -171,7 +220,7 @@ VL53L1_Error VL53L1_ReadMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, ui
 }
 
 VL53L1_Error VL53L1_WrByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t data ) {
-	return VL53L1_WriteMulti( pdev, registerAddress, &data, 1 );
+	return _WriteMulti< 1 >( pdev, registerAddress, &data );
 }
 
 VL53L1_Error VL53L1_WrWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t data ) {
@@ -180,7 +229,7 @@ VL53L1_Error VL53L1_WrWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint1
 		static_cast<uint8_t>( data & 0xFF )
 	};
 	
-	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
+	return _WriteMulti< sizeof(transmitBuffer) >( pdev, registerAddress, transmitBuffer );
 }
 
 VL53L1_Error VL53L1_WrDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t data ) {
@@ -191,19 +240,19 @@ VL53L1_Error VL53L1_WrDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint
 		static_cast<uint8_t>( data & 0xFF )
 	};
 	
-	return VL53L1_WriteMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
+	return _WriteMulti< sizeof(transmitBuffer) >( pdev, registerAddress, transmitBuffer );
 }
 
 VL53L1_Error VL53L1_RdByte( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t * data ) {
-	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, data, 1 );
-	
+	uint8_t status = _ReadMulti< 1 >( pdev, registerAddress, data );
+
 	return status;
 }
 
 VL53L1_Error VL53L1_RdWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint16_t * data ) {
 	uint16_t slaveAddress = pdev->i2c_slave_address;
 	uint8_t transmitBuffer[2] = { 0, 0 };
-	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer) );
+	uint8_t status = _ReadMulti< sizeof( transmitBuffer ) >( pdev, registerAddress, transmitBuffer );
 
 	*data = transmitBuffer[0] << 8;
 	*data += transmitBuffer[1];
@@ -213,7 +262,7 @@ VL53L1_Error VL53L1_RdWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint1
 
 VL53L1_Error VL53L1_RdDWord( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint32_t * data) {
 	uint8_t transmitBuffer[4] = { 0, 0, 0, 0 };
-	uint8_t status = VL53L1_ReadMulti( pdev, registerAddress, transmitBuffer, sizeof(transmitBuffer));
+	uint8_t status = _ReadMulti< sizeof( transmitBuffer ) >( pdev, registerAddress, transmitBuffer );
 
 	*data = transmitBuffer[0] << 24;
 	*data += transmitBuffer[1] << 16;

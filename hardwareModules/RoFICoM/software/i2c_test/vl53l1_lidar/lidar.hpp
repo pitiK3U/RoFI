@@ -11,7 +11,9 @@
 #include <vl53l1_platform.h>
 #include <vl53l1_platform_init.h>
 
-
+namespace _inner {
+    void initialize_platform( I2C* i2cPeriph );
+}
 
 struct Lidar
 {
@@ -22,9 +24,8 @@ struct Lidar
 
     using result_type = Result< Void, std::string_view >;
 
-    Lidar( I2C i2c, const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
-        : _i2c( std::move( i2c ) )
-        , _deviceAddress( deviceAddress )
+    Lidar( const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
+        : _deviceAddress( deviceAddress )
         , _communicationSpeed( commSpeed )
     {
         // As mentioned in datasheet VL53L1X has maximum speed of 400 kbits/s
@@ -36,8 +37,11 @@ struct Lidar
         VL53L1_platform_terminate( &_device );
     }
 
-    result_type initialize()
+    // TODO: make sure this function is called
+    result_type initialize( I2C* i2cPeriph )
     {
+        _inner::initialize_platform( i2cPeriph );
+
         VL53L1_Error status;
 
         status = VL53L1_platform_init( &_device, _defaultAddress, VL53L1_I2C, _communicationSpeed );
@@ -141,7 +145,7 @@ struct Lidar
 private:
     std::string_view errorToString( VL53L1_Error err );
 
-    I2C _i2c;
+    // I2C _i2c;
     VL53L1_Dev_t _device;
 
     uint32_t _deviceAddress;

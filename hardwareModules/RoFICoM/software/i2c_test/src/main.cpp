@@ -1,3 +1,5 @@
+#include "bsp.hpp"
+
 #include <atoms/result.hpp>
 // #include <atoms/util.hpp>
 
@@ -13,68 +15,26 @@
 
 #include <lidar.hpp>
 
-#include <stm32g0xx_hal.h>
-#include <stm32g0xx_ll_rcc.h>
-#include <stm32g0xx_ll_system.h>
-#include <stm32g0xx_ll_cortex.h>
-#include <stm32g0xx_ll_utils.h>
-
-#include <stm32g0xx_ll_i2c.h>
-
-
-void setupSystemClock() {
-    LL_FLASH_SetLatency( LL_FLASH_LATENCY_2 );
-    LL_RCC_HSI_Enable();
-    while( LL_RCC_HSI_IsReady() != 1 );
-
-    /* Main PLL configuration and activation */
-    LL_RCC_PLL_ConfigDomain_SYS( LL_RCC_PLLSOURCE_HSI, LL_RCC_PLLM_DIV_1, 8, LL_RCC_PLLR_DIV_2 );
-    LL_RCC_PLL_Enable();
-    LL_RCC_PLL_EnableDomain_SYS();
-    while( LL_RCC_PLL_IsReady() != 1 );
-
-    /* Set AHB prescaler*/
-    LL_RCC_SetAHBPrescaler( LL_RCC_SYSCLK_DIV_1 );
-
-    /* Sysclk activation on the main PLL */
-    LL_RCC_SetSysClkSource( LL_RCC_SYS_CLKSOURCE_PLL );
-    while( LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL );
-
-    /* Set APB1 prescaler*/
-    LL_RCC_SetAPB1Prescaler( LL_RCC_APB1_DIV_1 );
-
-    LL_Init1msTick(64000000);
-
-    LL_SYSTICK_SetClkSource( LL_SYSTICK_CLKSOURCE_HCLK );
-    /* Update CMSIS variable (which can be updated also through SystemCoreClockUpdate function) */
-    LL_SetSystemCoreClock( 64000000 );
-    LL_RCC_SetUSARTClockSource( LL_RCC_USART1_CLKSOURCE_PCLK1 );
-    LL_RCC_SetUSARTClockSource( LL_RCC_USART2_CLKSOURCE_PCLK1 );
-}
-
 using Block = memory::Pool::Block;
 
-Dbg& dbgInstance() {
-    static Dbg inst(
-        USART1, Dma::allocate( DMA1, 1 ), Dma::allocate( DMA1, 2 ),
-        TxOn( GpioB[ 6 ] ),
-        RxOn( GpioB[ 7 ] ),
-        Baudrate( 115200 ) );
-    return inst;
-}
-
 int main() {
-    setupSystemClock();
+    // constexpr auto dbgInstance = bsp::dbgInstance;
+    bsp::setupSystemClock();
     SystemCoreClockUpdate();
     HAL_Init();
+    
+    bsp::setupBoard();
 
     Dbg::info( "Main clock: %d", SystemCoreClock );
 
-    Lidar lidar( I2C( I2C2, SdaPin( GpioA[ 12 ] ), SclPin( GpioA[ 11 ] ) ) );
+    // TODO: Lidar might not need to own `i2c` since it might be shared by 
+    // other devices. Only requirements are that some i2c is configure and there
+    // is given `write` and `read` function.
+    Lidar lidar;
 
     Dbg::info("VL53L1 init start\n");
 
-    auto result = lidar.initialize().and_then( [&] ( auto ) {
+    auto result = lidar.initialize( &*bsp::i2c ).and_then( [&] ( auto ) {
         Dbg::info("start measuring\n");
         return lidar.startMeasurement();
     });
@@ -103,6 +63,7 @@ int main() {
         });
 
         if ( !result ) {
+            Dbg::error( "\n" );
             Dbg::error( result.assume_error().data() );
             return 2;
         }

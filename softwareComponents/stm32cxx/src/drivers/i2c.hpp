@@ -94,10 +94,10 @@ struct I2C: public Peripheral< I2C_TypeDef > {
 
     template < typename container >
     container read( const uint32_t peripheralAddress, const uint32_t transferSize ) {
-        assert( container::max_size() >= transferSize );
         container buffer;
+        assert( buffer.max_size() >= transferSize );
 
-            LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
+        LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
 
         uint8_t i = 0;
         while( !LL_I2C_IsActiveFlag_STOP( _periph ) ) {
