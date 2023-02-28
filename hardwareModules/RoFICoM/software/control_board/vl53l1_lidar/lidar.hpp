@@ -5,6 +5,7 @@
 
 #include <atoms/result.hpp>
 
+#include <drivers/timer.hpp>
 #include <drivers/i2c.hpp>
 
 #include <vl53l1_api.h>
@@ -12,7 +13,7 @@
 #include <vl53l1_platform_init.h>
 
 namespace _inner {
-    void initialize_platform( I2C* i2cPeriph );
+    void initialize_platform( I2C* i2cPeriph, Timer microTimer );
 }
 
 struct Lidar
@@ -38,9 +39,10 @@ struct Lidar
     }
 
     // TODO: make sure this function is called
-    result_type initialize( I2C* i2cPeriph )
+    // TOOD: might not need to take controll over the timer only need function to call to wait 1us
+    result_type initialize( I2C* i2cPeriph, Timer microTimer )
     {
-        _inner::initialize_platform( i2cPeriph );
+        _inner::initialize_platform( i2cPeriph, std::move( microTimer ) );
 
         VL53L1_Error status;
 

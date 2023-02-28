@@ -56,24 +56,25 @@
 // Anonymous namespace is to hide symbols only into this compilation unit.
 namespace {
 // static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
-static Timer microTimer( TIM2, FreqAndRes( 1000000, UINT16_MAX ) );
+std::optional< Timer > microTimer;
 I2C* pI2c = nullptr;
 }
 
-void _inner::initialize_platform( I2C* i2cPeriph ) {
+void _inner::initialize_platform( I2C* i2cPeriph, Timer _microTimer ) {
 	pI2c = i2cPeriph;
+	microTimer = std::move( _microTimer );
 }
 
 VL53L1_Error VL53L1_CommsInitialise(
 	VL53L1_Dev_t *pdev,
 	uint8_t       comms_type,
 	uint16_t      comms_speed_khz) {
-	// Note: init is done in main.cpp `setupI2C`
+	// Note: init is done in lidar.hpp in constructor of `I2C`
 	SUPPRESS_UNUSED_WARNING(pdev);
 	SUPPRESS_UNUSED_WARNING(comms_type);
 	SUPPRESS_UNUSED_WARNING(comms_speed_khz);
 
-    microTimer.enable();
+    microTimer->enable();
 
 	
 	// GPIO Ports Clock Enable 
@@ -99,7 +100,7 @@ VL53L1_Error VL53L1_CommsInitialise(
 VL53L1_Error VL53L1_CommsClose(VL53L1_Dev_t *pdev) {
 	SUPPRESS_UNUSED_WARNING(pdev);
 
-	microTimer.disable();
+	microTimer->disable();
 
 	// Return NRST pin to control of reseting the mcu
 	// LL_GPIO_ResetOutputPin( GPIOF, LL_GPIO_PIN_2 );
@@ -282,9 +283,9 @@ VL53L1_Error VL53L1_WaitUs(
 		VL53L1_Dev_t *pdev,
 		int32_t       wait_us) {
 
-	uint16_t start = microTimer.counter();
+	uint16_t start = microTimer->counter();
 
-	while( ( microTimer.counter() - start ) < wait_us ) {};
+	while( ( microTimer->counter() - start ) < wait_us ) {};
 
 	return VL53L1_ERROR_NONE;
 }

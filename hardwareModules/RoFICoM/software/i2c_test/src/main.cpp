@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-#include <system/defer.hpp>
+#include <system/idle.hpp>
 #include <system/dbg.hpp>
 
 #include <drivers/clock.hpp>
@@ -19,9 +19,9 @@ using Block = memory::Pool::Block;
 
 int main() {
     // constexpr auto dbgInstance = bsp::dbgInstance;
-    bsp::setupSystemClock();
-    SystemCoreClockUpdate();
-    HAL_Init();
+    // bsp::setupSystemClock();
+    // SystemCoreClockUpdate();
+    // HAL_Init();
     
     bsp::setupBoard();
 
@@ -74,7 +74,7 @@ int main() {
                 Dbg::error( "DBG received: %c", Dbg::get() );
             }
         }
-        if ( Defer::run() ) {
+        if ( IdleTask::run() ) {
             // Dbg::error("D\n");
         }
     }

@@ -21,7 +21,7 @@ add_stm32_target(
         LIBTYPE STATIC
         MCU ${ROFICOM_MCU}
         MCU_SPEC ${ROFICOM_MCU_SPEC}
-        LINKER_SCRIPT $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/i2c_test/stm32/STM32G071GBUx_FLASH.ld
+        LINKER_SCRIPT $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/control_board/stm32/STM32G071GBUx_FLASH.ld
         FILES ${LIDAR})
 target_include_directories(lidar PUBLIC
         .

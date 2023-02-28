@@ -35,10 +35,6 @@ add_subdirectory(
 add_subdirectory(
     $ENV{ROFI_ROOT}/hardwareModules/universalModule/software/bios2
     bios2)
-add_subdirectory(
-    $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/i2c_test/
-    i2c
-)
 
 
 list_targets()

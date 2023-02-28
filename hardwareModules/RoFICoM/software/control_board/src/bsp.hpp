@@ -3,7 +3,6 @@
 
 #include <system/dbg.hpp>
 
-#include <drivers/clock.hpp>
 #include <drivers/gpio.hpp>
 #include <drivers/i2c.hpp>
 #include <drivers/timer.hpp>
@@ -11,6 +10,8 @@
 #pragma once
 
 Dbg &dbgInstance();
+
+extern void SystemCoreClockUpdate(void);
 
 /**
  * This is Board Support Package integration into RoFI.
@@ -22,10 +23,17 @@ Dbg &dbgInstance();
  * 
 */
 namespace bsp {
-    // TODO: microsecond timer
-
     extern std::optional< I2C > i2c;
+    // us timer needed for lidar waiting
+    extern std::optional< Timer > microTimer;
 
+    /**
+     * Function to setup your board, MUST be called before using 
+     * any members of `bsp` namespace. Setups board specific
+     * clock, timers, pins, peripherals, etc.
+     * 
+     * Should be implemented in `bsp.cpp` with board specific 
+     * initialization.
+    */
     void setupBoard();
-    void setupSystemClock();
 }

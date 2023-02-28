@@ -11,6 +11,8 @@ project(control_board C CXX ASM)
 set(ROFICOM_MCU "STM32G071xx")
 set(ROFICOM_MCU_SPEC "STM32G071GBUx")
 
+add_subdirectory(vl53l1_lidar)
+
 file(GLOB_RECURSE SRC src/*.cpp src/*.c)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=5")
@@ -24,11 +26,12 @@ add_stm32_target(
         MCU_SPEC ${ROFICOM_MCU_SPEC}
         LINKER_SCRIPT $ENV{ROFI_ROOT}/hardwareModules/RoFICoM/software/control_board/stm32/STM32G071GBUx_FLASH.ld
         FILES ${SRC})
-set_property(TARGET roficomFw PROPERTY CXX_STANDARD 17)
+set_property(TARGET roficomFw PROPERTY CXX_STANDARD 20)
 target_include_directories(roficomFw PRIVATE src)
 target_compile_options(roficomFw PRIVATE
         -Wall -Wextra -pedantic -funwind-tables)
 target_link_libraries(roficomFw
         g0_startup function2 g0_stm32cxx g0_HAL_CRC
         g0_stm32cxx_system g0_stm32cxx_uart g0_stm32cxx_spi g0_stm32cxx_gpio
-        g0_stm32cxx_dma g0_stm32cxx_adc g0_stm32cxx_timer)
+        g0_stm32cxx_dma g0_stm32cxx_adc g0_stm32cxx_timer g0_stm32cxx_i2c
+        lidar atoms)
