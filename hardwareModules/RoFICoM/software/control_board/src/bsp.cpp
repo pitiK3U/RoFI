@@ -1,6 +1,7 @@
 #include "bsp.hpp"
 
 #include "configuration.hpp"
+#include "motor.hpp"
 
 #include <optional>
 
@@ -45,12 +46,49 @@ namespace {
 }
 
 namespace bsp {
+    Gpio::Pin connectorSenseA = GpioC[ 6 ];
+    Gpio::Pin connectorSenseB = GpioA[ 15 ];
+    Gpio::Pin sliderRetrationLimit = GpioB[ 4 ];
+    Gpio::Pin sliderExpansionLimit = GpioB[ 8 ];
+    Gpio::Pin sliderMotorPin = GpioC[ 14 ];
+    Gpio::Pin spiCSPin = GpioA[ 4 ];
+
+
+    std::optional< Timer > timer;
+    std::optional< Timer::Pwm > pwm;
+    std::optional< Spi > spi;
+    std::optional< Uart > uart;
+
     std::optional< I2C > i2c;
     std::optional< Timer > microTimer;
 
     void setupBoard() {
         setupSystemClock();
         SystemCoreClockUpdate();
+
+        timer = Timer( TIM1, FreqAndRes( 1000, 2000 ) );
+        
+        pwm = timer->pwmChannel( LL_TIM_CHANNEL_CH1 );
+        pwm->attachPin( GpioA[ 8 ] );
+        timer->enable();
+
+        Motor motor( bsp::pwm.value(), GpioB[ 1 ] );
+        motor.enable();
+        motor.set( 0 );
+
+        spi = Spi( SPI1,
+            Slave(),
+            MisoOn( GpioA[ 6 ] ),
+            SckOn( GpioB[ 3 ] ),
+            CsOn( spiCSPin )
+        );
+
+        uart = Uart( USART2,
+            Baudrate( cfg::TRANSMIT_BAUDRATE ),
+            TxOn( GpioA[ 2 ] ),
+            RxOn( GpioA[ 3 ] ),
+            UartOversampling( 8 ) );
+        uart->enable();
 
         i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ) );
         microTimer = Timer( TIM2, FreqAndRes( cfg::MICROSECOND_FREQUENCY, UINT16_MAX ) );

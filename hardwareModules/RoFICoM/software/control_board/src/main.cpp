@@ -98,13 +98,20 @@ void onCmdReceiveBlob( SpiInterface& spiInt, ConnComInterface& connInt ) {
 int main() {
     bsp::setupBoard();
 
-    Dbg::blockingInfo( "HELP" );
-
     Dbg::blockingInfo( "Starting" );
 
+    Adc1.setup();
+    Adc1.enable();
+
+    Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
+
+    PowerSwitch powerInterface;
+    ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
+
+    // TODO use IdleTask::defer for hotplug lidar
 
     Lidar lidar;
-    auto result = lidar.initialize( &*bsp::i2c, *std::move( bsp::microTimer ) ).and_then( [&] ( auto ) {
+    auto result = lidar.initialize( &*bsp::i2c, std::move( bsp::microTimer ).value() ).and_then( [&] ( auto ) {
         Dbg::blockingInfo("start measuring\n");
         return lidar.startMeasurement();
     });
@@ -115,42 +122,10 @@ int main() {
         return 1;
     }
 
-    Adc1.setup();
-    Adc1.enable();
-
-    Timer timer( TIM1, FreqAndRes( 1000, 2000 ) );
-    auto pwm = timer.pwmChannel( LL_TIM_CHANNEL_CH1 );
-    pwm.attachPin( GpioA[ 8 ] );
-    timer.enable();
-
-    Motor motor( pwm, GpioB[ 1 ] );
-    motor.enable();
-    motor.set( 0 );
-
-    Slider slider( Motor( pwm, GpioC[ 14 ] ), GpioB[ 4 ], GpioB[ 8 ] );
-
-    PowerSwitch powerInterface;
-    ConnectorStatus connectorStatus ( GpioC[ 6 ], GpioA[ 15 ] );
-
-
-    Spi spi( SPI1,
-        Slave(),
-        MisoOn( GpioA[ 6 ] ),
-        SckOn( GpioB[ 3 ] ),
-        CsOn( GpioA[ 4 ] )
-    );
-
-    Uart uart( USART2,
-        Baudrate( cfg::TRANSMIT_BAUDRATE ),
-        TxOn( GpioA[ 2 ] ),
-        RxOn( GpioA[ 3 ] ),
-        UartOversampling( 8 ) );
-    uart.enable();
-
-    ConnComInterface connComInterface( std::move( uart ) );
+    ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
     using Command = SpiInterface::Command;
-    SpiInterface spiInterface( std::move( spi ), GpioA[ 4 ],
+    SpiInterface spiInterface( std::move( bsp::spi ).value(), spiCSPin,
         [&]( Command cmd, Block b ) {
             switch( cmd ) {
             case Command::VERSION:
