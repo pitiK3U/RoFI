@@ -17,7 +17,7 @@ struct I2CPin : public Gpio::Pin
     I2CPin( Gpio::Pin&& pin ) : Gpio::Pin( pin ) {}
 
     I2CPin& setupODAlternate( ) {
-        setupODOutput( true );
+        setupODOutput( true, true );
 
         assert( 0 <= _pos && _pos <= 15 );
 
@@ -74,10 +74,12 @@ struct I2C: public Peripheral< I2C_TypeDef > {
         LL_I2C_DisableOwnAddress2( _periph );
         LL_I2C_DisableGeneralCall( _periph );
         LL_I2C_EnableClockStretching( _periph );
+
+        LL_I2C_EnableIT_ERR( _periph );
     }
 
     template < typename container >
-    void write( const uint32_t peripheralAddress, container& data) {
+    int write( const uint32_t peripheralAddress, container& data) {
         LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, data.size(), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
         typename container::size_type i = 0;
@@ -89,7 +91,38 @@ struct I2C: public Peripheral< I2C_TypeDef > {
             }
         }
 
+        if ( LL_I2C_IsActiveFlag_NACK( _periph ) ) {
+            LL_I2C_ClearFlag_NACK( _periph );
+
+            LL_I2C_ClearFlag_STOP( _periph );
+            return 2;
+        }
+
+        if ( LL_I2C_IsActiveFlag_BERR( _periph ) ) {
+            LL_I2C_ClearFlag_BERR( _periph );
+
+            LL_I2C_ClearFlag_STOP( _periph );
+            return 1;
+        }
+
+         if ( LL_I2C_IsActiveFlag_ARLO( _periph ) ) {
+            LL_I2C_ClearFlag_ARLO( _periph );
+
+            LL_I2C_ClearFlag_STOP( _periph );
+            return 3;
+        }
+
+        if ( LL_I2C_IsActiveFlag_OVR( _periph ) ) {
+            LL_I2C_ClearFlag_OVR( _periph );
+
+            LL_I2C_ClearFlag_STOP( _periph );
+            return 1;
+        }
+
+
         LL_I2C_ClearFlag_STOP( _periph );
+        
+        return 0;
     }
 
     template < typename container >
