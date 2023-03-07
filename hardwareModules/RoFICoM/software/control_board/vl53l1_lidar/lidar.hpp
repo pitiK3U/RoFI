@@ -12,8 +12,12 @@
 #include <vl53l1_platform.h>
 #include <vl53l1_platform_init.h>
 
+// namespace that's used to propagate needed peripherals/functions
+// to library's `vl53l1_plaftorm.cpp`
 namespace _inner {
-    void initialize_platform( I2C* i2cPeriph, Timer microTimer );
+    using waitUsFn = void (*)(uint32_t);
+
+    void initialize_platform( I2C*, waitUsFn );
 }
 
 struct Lidar
@@ -24,9 +28,12 @@ struct Lidar
     using Result = atoms::Result< T, E >;
 
     using result_type = Result< Void, std::string_view >;
+    using waitUsFn = _inner::waitUsFn;
 
-    Lidar( const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
-        : _deviceAddress( deviceAddress )
+    Lidar( I2C* i2c, waitUsFn waitUs , const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
+        : _i2c( i2c )
+        , _waitUs( waitUs )
+        , _deviceAddress( deviceAddress )
         , _communicationSpeed( commSpeed )
     {
         // As mentioned in datasheet VL53L1X has maximum speed of 400 kbits/s
@@ -40,9 +47,9 @@ struct Lidar
 
     // TODO: make sure this function is called
     // TOOD: might not need to take controll over the timer only need function to call to wait 1us
-    result_type initialize( I2C* i2cPeriph, Timer microTimer )
+    result_type initialize()
     {
-        _inner::initialize_platform( i2cPeriph, std::move( microTimer ) );
+        _inner::initialize_platform( _i2c, _waitUs );
 
         VL53L1_Error status;
 
@@ -147,7 +154,9 @@ struct Lidar
 private:
     std::string_view errorToString( VL53L1_Error err );
 
-    // I2C _i2c;
+    I2C* _i2c;
+    waitUsFn _waitUs;
+
     VL53L1_Dev_t _device;
 
     uint32_t _deviceAddress;

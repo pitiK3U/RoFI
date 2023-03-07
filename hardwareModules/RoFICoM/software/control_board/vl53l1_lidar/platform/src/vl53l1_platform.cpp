@@ -56,13 +56,13 @@
 // Anonymous namespace is to hide symbols only into this compilation unit.
 namespace {
 // static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
-std::optional< Timer > microTimer;
+Lidar::waitUsFn waitUs;
 I2C* pI2c = nullptr;
 }
 
-void _inner::initialize_platform( I2C* i2cPeriph, Timer _microTimer ) {
+void _inner::initialize_platform( I2C* i2cPeriph, Lidar::waitUsFn _waitUs ) {
 	pI2c = i2cPeriph;
-	microTimer = std::move( _microTimer );
+	waitUs = _waitUs;
 }
 
 VL53L1_Error VL53L1_CommsInitialise(
@@ -74,7 +74,7 @@ VL53L1_Error VL53L1_CommsInitialise(
 	SUPPRESS_UNUSED_WARNING(comms_type);
 	SUPPRESS_UNUSED_WARNING(comms_speed_khz);
 
-    microTimer->enable();
+    // microTimer->enable();
 
 	
 	// GPIO Ports Clock Enable 
@@ -100,7 +100,7 @@ VL53L1_Error VL53L1_CommsInitialise(
 VL53L1_Error VL53L1_CommsClose(VL53L1_Dev_t *pdev) {
 	SUPPRESS_UNUSED_WARNING(pdev);
 
-	microTimer->disable();
+	// microTimer->disable();
 
 	// Return NRST pin to control of reseting the mcu
 	// LL_GPIO_ResetOutputPin( GPIOF, LL_GPIO_PIN_2 );
@@ -149,20 +149,22 @@ static VL53L1_Error _WriteMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, 
 	};
 
 	std::array< uint8_t, sizeof( address ) + N > buffer = { address[0], address[1] };
-	std::copy( transmitBuffer, transmitBuffer + N, std::next( buffer.begin(), sizeof( address ) ) );
+	if ( transmitBuffer != nullptr )
+		std::copy( transmitBuffer, transmitBuffer + N, std::next( buffer.begin(), sizeof( address ) ) );
 
 	assert( pI2c );
 
-	pI2c->write( slaveAddress, buffer );
-
-	return 0;
+	return pI2c->write( slaveAddress, buffer );
 }
 
 template< std::size_t N >
 static VL53L1_Error _ReadMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 
-	_WriteMulti< 0 >( pdev, registerAddress, nullptr );
+	VL53L1_Error status = _WriteMulti< 0 >( pdev, registerAddress, nullptr );
+	if ( status != VL53L1_ERROR_NONE ) {
+		return status;
+	}
 
 	assert( pI2c );
 	auto result = pI2c->read< std::array< uint8_t, N > >( slaveAddress, N );
@@ -283,9 +285,8 @@ VL53L1_Error VL53L1_WaitUs(
 		VL53L1_Dev_t *pdev,
 		int32_t       wait_us) {
 
-	uint16_t start = microTimer->counter();
-
-	while( ( microTimer->counter() - start ) < wait_us ) {};
+	assert( waitUs );
+	waitUs( wait_us );
 
 	return VL53L1_ERROR_NONE;
 }

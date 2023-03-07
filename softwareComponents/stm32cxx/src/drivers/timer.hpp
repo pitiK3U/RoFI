@@ -35,6 +35,12 @@ public:
         return LL_TIM_GetCounter( _periph );
     }
 
+    void blockingWait( uint32_t wait ) {
+        auto start = counter();
+
+        while ( counter() - start > wait ) {};
+    }
+
     class Pwm {
     public:
         Pwm(): _periph( nullptr ), _channel( 0 ) {};

@@ -46,12 +46,12 @@ namespace {
 }
 
 namespace bsp {
-    Gpio::Pin connectorSenseA = GpioC[ 6 ];
-    Gpio::Pin connectorSenseB = GpioA[ 15 ];
-    Gpio::Pin sliderRetrationLimit = GpioB[ 4 ];
-    Gpio::Pin sliderExpansionLimit = GpioB[ 8 ];
-    Gpio::Pin sliderMotorPin = GpioC[ 14 ];
-    Gpio::Pin spiCSPin = GpioA[ 4 ];
+    const Gpio::Pin connectorSenseA = { 6, GPIOC };
+    const Gpio::Pin connectorSenseB = { 15, GPIOA };
+    const Gpio::Pin sliderRetrationLimit = { 4, GPIOB };
+    const Gpio::Pin sliderExpansionLimit = { 8, GPIOB };
+    const Gpio::Pin sliderMotorPin = { 14, GPIOC };
+    const Gpio::Pin spiCSPin = { 4, GPIOA };
 
 
     std::optional< Timer > timer;
@@ -67,7 +67,7 @@ namespace bsp {
         SystemCoreClockUpdate();
 
         timer = Timer( TIM1, FreqAndRes( 1000, 2000 ) );
-        
+
         pwm = timer->pwmChannel( LL_TIM_CHANNEL_CH1 );
         pwm->attachPin( GpioA[ 8 ] );
         timer->enable();
@@ -75,7 +75,7 @@ namespace bsp {
         Motor motor( bsp::pwm.value(), GpioB[ 1 ] );
         motor.enable();
         motor.set( 0 );
-
+        
         spi = Spi( SPI1,
             Slave(),
             MisoOn( GpioA[ 6 ] ),

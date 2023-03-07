@@ -26,12 +26,12 @@ extern void SystemCoreClockUpdate(void);
  * 
 */
 namespace bsp {
-    extern Gpio::Pin connectorSenseA;
-    extern Gpio::Pin connectorSenseB;
-    extern Gpio::Pin sliderRetrationLimit;
-    extern Gpio::Pin sliderExpansionLimit;
-    extern Gpio::Pin sliderMotorPin;
-    extern Gpio::Pin spiCSPin;
+    extern const Gpio::Pin connectorSenseA;
+    extern const Gpio::Pin connectorSenseB;
+    extern const Gpio::Pin sliderRetrationLimit;
+    extern const Gpio::Pin sliderExpansionLimit;
+    extern const Gpio::Pin sliderMotorPin;
+    extern const Gpio::Pin spiCSPin;
 
     extern std::optional< Timer > timer;
     extern std::optional< Timer::Pwm > pwm;
@@ -39,7 +39,7 @@ namespace bsp {
     extern std::optional< Uart > uart;
 
     extern std::optional< I2C > i2c;
-    // us timer needed for lidar waiting
+    // microsecond timer needed for lidar waiting
     extern std::optional< Timer > microTimer;
 
     /**

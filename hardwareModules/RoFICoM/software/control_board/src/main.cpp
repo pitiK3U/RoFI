@@ -1,4 +1,5 @@
 #include <cassert>
+#include <functional>
 
 #include <system/idle.hpp>
 #include <system/dbg.hpp>
@@ -11,7 +12,7 @@
 #include <drivers/adc.hpp>
 
 #include <motor.hpp>
-#include <lidar.hpp>
+#include "lidar.hpp"
 #include <util.hpp>
 
 #include <spiInterface.hpp>
@@ -95,37 +96,81 @@ void onCmdReceiveBlob( SpiInterface& spiInt, ConnComInterface& connInt ) {
     }
 }
 
+
+void lidarGet( Lidar& lidar );
+
+void lidarInit( Lidar& lidar ) {
+    auto result = lidar.initialize().and_then( [&] ( auto ) {
+            Dbg::blockingInfo("start measuring\n");
+            return lidar.startMeasurement();
+        });
+
+        if ( !result ) {
+            Dbg::error( "\n Error init:" );
+            Dbg::error( result.assume_error().data() );
+            IdleTask::defer( std::bind( lidarInit, lidar ) );
+        } else {
+            IdleTask::defer( std::bind( lidarGet, lidar ) );
+        }
+}
+
+void lidarGet( Lidar& lidar ) {
+
+    auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) {
+            return !ready
+            ? atoms::make_result_value< atoms::Void >()
+            : lidar.getRangingMeasurementData()
+                .and_then( [&] ( auto rangingMeasurementData ) {
+                    Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
+                        rangingMeasurementData.RangeStatus,
+                        rangingMeasurementData.RangeMilliMeter );
+
+                    return lidar.clearInterruptAndStartMeasurement();
+                });
+        });
+
+        if ( !result ) {
+            Dbg::error( "\nError get: " );
+            Dbg::error( result.assume_error().data() );
+            IdleTask::defer( std::bind( lidarInit, lidar ) );
+        } else {
+            IdleTask::defer( std::bind( lidarGet, lidar ) );
+        }
+
+}
+
+
 int main() {
     bsp::setupBoard();
+    HAL_Init();
 
     Dbg::blockingInfo( "Starting" );
 
     Adc1.setup();
     Adc1.enable();
 
-    Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
+/*    Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
 
     PowerSwitch powerInterface;
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
+ */
+    // TODO: use IdleTask::defer for hotplug lidar
+    // TODO: solve ownership of peripherals when initializing lidar
+    constexpr auto wait = [] ( uint32_t wait ) { bsp::microTimer->blockingWait( wait ); };
 
-    // TODO use IdleTask::defer for hotplug lidar
+    Lidar lidar( &*bsp::i2c, wait );
 
-    Lidar lidar;
-    auto result = lidar.initialize( &*bsp::i2c, std::move( bsp::microTimer ).value() ).and_then( [&] ( auto ) {
-        Dbg::blockingInfo("start measuring\n");
-        return lidar.startMeasurement();
-    });
+    using LidarResult = decltype( std::declval<Lidar>().getMeasurementDataReady() );
+    std::optional< LidarResult > result;
 
-    if ( !result ) {
-        Dbg::error( "\n" );
-        Dbg::error( result.assume_error().data() );
-        return 1;
-    }
 
-    ConnComInterface connComInterface( std::move( bsp::uart ).value() );
+    lidarInit( lidar );
+    // IdleTask::defer( std::bind( lidarInit, lidar ) );
+
+    /* ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
     using Command = SpiInterface::Command;
-    SpiInterface spiInterface( std::move( bsp::spi ).value(), spiCSPin,
+    SpiInterface spiInterface( std::move( bsp::spi ).value(), GpioA[ 4 ],
         [&]( Command cmd, Block b ) {
             switch( cmd ) {
             case Command::VERSION:
@@ -147,25 +192,25 @@ int main() {
                 Dbg::warning( "Unknown command %d", cmd );
             };
         } );
-    connComInterface.onNewBlob( [&] { spiInterface.interruptMaster(); } );
+    connComInterface.onNewBlob( [&] { spiInterface.interruptMaster(); } ); */
 
     Dbg::blockingInfo( "Ready for operation" );
 
     while ( true ) {
-        slider.run();
+        /* slider.run();
         powerInterface.run();
         if ( connectorStatus.run() )
-            spiInterface.interruptMaster();
+            spiInterface.interruptMaster(); */
 
         if ( Dbg::available() ) {
             char chr = Dbg::get();
             switch( chr ) {
             case 'e':
-                slider.expand();
+                // slider.expand();
                 Dbg::info("Expanding");
                 break;
             case 'r':
-                slider.retract();
+                // slider.retract();
                 Dbg::info("Retracting");
                 break;
             default:
@@ -173,26 +218,7 @@ int main() {
             }
         }
         // Dbg::error("%d, %d", GpioB[ 4 ].read(), GpioB[ 8 ].read());
-        connComInterface.run();
-
-        result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) {
-            return !ready
-            ? atoms::make_result_value< atoms::Void >()
-            : lidar.getRangingMeasurementData()
-                .and_then( [&] ( auto rangingMeasurementData ) {
-                    Dbg::info( "Range status: %d, Range: %d mm\n",
-                        rangingMeasurementData.RangeStatus,
-                        rangingMeasurementData.RangeMilliMeter );
-
-                    return lidar.clearInterruptAndStartMeasurement();
-                });
-        });
-
-        if ( !result ) {
-            Dbg::error( "\n" );
-            Dbg::error( result.assume_error().data() );
-            return 2;
-        }
+        // connComInterface.run();
 
         IdleTask::run();
     }
