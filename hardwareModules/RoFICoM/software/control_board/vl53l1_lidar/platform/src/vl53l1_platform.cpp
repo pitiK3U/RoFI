@@ -35,6 +35,7 @@
 
 #include <array>
 #include <functional>
+#include <span>
 
 #include <stm32g0xx_ll_i2c.h>
 #include <stm32g0xx_ll_gpio.h>
@@ -139,18 +140,18 @@ static uint8_t _I2C_RegisterAdress( const VL53L1_Dev_t * pdev, const uint16_t Re
 }
 
 template< std::size_t N >
-static VL53L1_Error _WriteMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
+inline static VL53L1_Error _WriteMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
+	constexpr auto addressSize = 2;
 
 	// NOTE: register address must be sent with data in one transaction 
-	const uint8_t address[2] = {
+ 	std::array< uint8_t, addressSize + N > buffer = {
 		static_cast<uint8_t>( registerAddress >> 8 ),
-		static_cast<uint8_t>( registerAddress & 0xFF )
+		static_cast<uint8_t>( registerAddress & 0xFF ) 
 	};
 
-	std::array< uint8_t, sizeof( address ) + N > buffer = { address[0], address[1] };
-	if ( transmitBuffer != nullptr )
-		std::copy( transmitBuffer, transmitBuffer + N, std::next( buffer.begin(), sizeof( address ) ) );
+	if constexpr ( N > 0 )
+		std::copy( transmitBuffer, transmitBuffer + N, std::next( buffer.begin(), addressSize ) );
 
 	assert( pI2c );
 
@@ -158,7 +159,7 @@ static VL53L1_Error _WriteMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, 
 }
 
 template< std::size_t N >
-static VL53L1_Error _ReadMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
+inline static VL53L1_Error _ReadMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, uint8_t *transmitBuffer ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 
 	VL53L1_Error status = _WriteMulti< 0 >( pdev, registerAddress, nullptr );
@@ -166,15 +167,15 @@ static VL53L1_Error _ReadMulti( VL53L1_Dev_t * pdev, uint16_t registerAddress, u
 		return status;
 	}
 
+	auto span = std::span< uint8_t, N >( transmitBuffer, N );
+	
 	assert( pI2c );
-	auto result = pI2c->read< std::array< uint8_t, N > >( slaveAddress, N );
-	std::copy( result.begin(), result.end(), transmitBuffer );
-
-	return 0;
+	
+	return pI2c->read( slaveAddress, span );
 }
 
 // FIX: `VL53L1_WriteMulti` and `VL53L1_ReadMulti` are C function thus they are declared to use runtime transfer size.
-// 		However the I2C driver uses compile time size to enure enough data can be hold with type safety.
+// 		However the I2C driver uses compile time size to ensure enough data can be hold with type safety.
 VL53L1_Error VL53L1_WriteMulti( VL53L1_Dev_t * pdev, uint16_t RegisterAddress, uint8_t *transmitBuffer, uint32_t bufferSize ) {
 	const uint16_t slaveAddress = pdev->i2c_slave_address;
 

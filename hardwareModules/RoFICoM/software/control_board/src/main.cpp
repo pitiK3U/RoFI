@@ -149,11 +149,11 @@ int main() {
     Adc1.setup();
     Adc1.enable();
 
-/*    Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
+    // Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
 
-    PowerSwitch powerInterface;
-    ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
- */
+    // PowerSwitch powerInterface;
+    // ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
+ 
     // TODO: use IdleTask::defer for hotplug lidar
     // TODO: solve ownership of peripherals when initializing lidar
     constexpr auto wait = [] ( uint32_t wait ) { bsp::microTimer->blockingWait( wait ); };
@@ -165,7 +165,7 @@ int main() {
 
 
     lidarInit( lidar );
-    // IdleTask::defer( std::bind( lidarInit, lidar ) );
+    //IdleTask::defer( std::bind( lidarInit, lidar ) );
 
     /* ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
@@ -177,7 +177,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                onCmdStatus( spiInterface, std::move( b ), connComInterface, slider );
+                // onCmdStatus( spiInterface, std::move( b ), connComInterface, slider );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );
@@ -197,7 +197,7 @@ int main() {
     Dbg::blockingInfo( "Ready for operation" );
 
     while ( true ) {
-        /* slider.run();
+       /*  slider.run();
         powerInterface.run();
         if ( connectorStatus.run() )
             spiInterface.interruptMaster(); */

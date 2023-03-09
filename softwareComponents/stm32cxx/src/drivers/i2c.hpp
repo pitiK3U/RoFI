@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <ranges>
 
 #include <system/assert.hpp>
 
@@ -10,7 +11,6 @@
 #include <drivers/gpio.hpp>
 
 #include <stm32g0xx_ll_i2c.h>
-
 
 struct I2CPin : public Gpio::Pin
 {
@@ -46,6 +46,7 @@ struct SclPin : public I2CPin
     using I2CPin::I2CPin;
 };
 
+// TODO: transaction address 7bit vs 10bit
 struct I2C: public Peripheral< I2C_TypeDef > {
     I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
         : Peripheral< I2C_TypeDef >( i2c )
@@ -79,57 +80,62 @@ struct I2C: public Peripheral< I2C_TypeDef > {
     }
 
     template < typename container >
-    int write( const uint32_t peripheralAddress, container& data) {
-        LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, data.size(), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
+    int write( const uint32_t peripheralAddress, const container& buffer ) {
+        return _write( peripheralAddress, buffer.data(), buffer.size() );
+    }
 
-        typename container::size_type i = 0;
+    template < typename container >
+    int read( const uint32_t peripheralAddress, container& buffer ) {
+        return _read( peripheralAddress, buffer.data(), buffer.size() );
+    }
 
-        while( !LL_I2C_IsActiveFlag_STOP( _periph ) ) {
-            if ( LL_I2C_IsActiveFlag_TXIS( _periph ) ) {
-                LL_I2C_TransmitData8( _periph, data[i] );
-                ++i;
-            }
-        }
-
+private:
+    /**
+     * Checks whether an error occured on the i2c peripheral.
+     * 
+     * NOTE: This function clears given error flag after checking it.
+    */
+    int checkError() {
         if ( LL_I2C_IsActiveFlag_NACK( _periph ) ) {
             LL_I2C_ClearFlag_NACK( _periph );
-
-            LL_I2C_ClearFlag_STOP( _periph );
-            return 2;
+            return 1;
         }
 
         if ( LL_I2C_IsActiveFlag_BERR( _periph ) ) {
             LL_I2C_ClearFlag_BERR( _periph );
-
-            LL_I2C_ClearFlag_STOP( _periph );
-            return 1;
+            return 2;
         }
 
          if ( LL_I2C_IsActiveFlag_ARLO( _periph ) ) {
             LL_I2C_ClearFlag_ARLO( _periph );
-
-            LL_I2C_ClearFlag_STOP( _periph );
             return 3;
         }
 
         if ( LL_I2C_IsActiveFlag_OVR( _periph ) ) {
             LL_I2C_ClearFlag_OVR( _periph );
-
-            LL_I2C_ClearFlag_STOP( _periph );
-            return 1;
+            return 4;
         }
 
-
-        LL_I2C_ClearFlag_STOP( _periph );
-        
         return 0;
     }
 
-    template < typename container >
-    container read( const uint32_t peripheralAddress, const uint32_t transferSize ) {
-        container buffer;
-        assert( buffer.max_size() >= transferSize );
+    int _write( const uint32_t peripheralAddress, const uint8_t* data, const uint32_t transferSize ) {
+        LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
+        while( !LL_I2C_IsActiveFlag_STOP( _periph ) ) {
+            if ( LL_I2C_IsActiveFlag_TXIS( _periph ) ) {
+                LL_I2C_TransmitData8( _periph, *(data++) );
+            }
+        }
+
+        int error = checkError();
+
+        LL_I2C_ClearFlag_STOP( _periph );
+        
+        return error;
+    }
+
+    int _read( const uint32_t peripheralAddress, uint8_t* buffer, const uint32_t transferSize ) {
         LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
 
         uint8_t i = 0;
@@ -140,12 +146,11 @@ struct I2C: public Peripheral< I2C_TypeDef > {
             }
         }
 
+        int error = checkError();
+
         LL_I2C_ClearFlag_STOP( _periph );
 
-        return buffer;
+        return error;
     }
-
-private:
-
 };
 

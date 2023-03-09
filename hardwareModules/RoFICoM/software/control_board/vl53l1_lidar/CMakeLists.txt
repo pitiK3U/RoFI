@@ -12,6 +12,8 @@ set(ROFICOM_MCU_SPEC "STM32G071GBUx")
 file(GLOB_RECURSE LIDAR ./*.cpp ./*.c)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=5")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+
 
 # setup_stm32cxx("g0" ${ROFICOM_MCU} ${ROFICOM_MCU_SPEC})
 
