@@ -1,5 +1,6 @@
 #include <cassert>
 #include <functional>
+#include <type_traits>
 
 #include <system/idle.hpp>
 #include <system/dbg.hpp>
@@ -30,12 +31,29 @@
 
 using Block = memory::Pool::Block;
 
+using LidarResult = decltype( std::declval< Lidar >().getRangingMeasurementData() );
+
 enum ConnectorStateFlags {
     PositionExpanded  = 1 << 0,
     InternalConnected = 1 << 1,
     ExternalConnected = 1 << 2,
+    /**
+     * Usually is affected by ambient light.
+     * Ob00 = autonomous distance measurement
+     * 0b01 = short distance measurement <= 1.3m
+     * 0b10 = medium distance measurement 
+     * 0b11 = long distance measurement <= 4m
+    */
+    LidarDistanceMode = 0b11 << 3,
     MatingSide        = 1 << 8,
     Orientation       = 0b11 << 9,
+    /**
+     * 0b00 = valid measurement data
+     * 0b01 = Data outside measured range (data DOESN'T HAVE TO BE valid, but can be, usually means is below or above of range we can measure )
+     * 0b10 = Data not yet measured
+     * 0b11 = error
+    */
+    LidarStatus       = 0b11 << 11,
 };
 
 
@@ -47,7 +65,7 @@ void onCmdVersion( SpiInterface& interf ) {
 }
 
 void onCmdStatus( SpiInterface& interf, Block header,
-    ConnComInterface& connInt, Slider& slider )
+    ConnComInterface& connInt, Slider& slider, std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
     uint16_t mask = viewAs< uint16_t >( header.get() + 2 );
@@ -58,11 +76,26 @@ void onCmdStatus( SpiInterface& interf, Block header,
             slider.retract();
     }
 
+    uint8_t lidarStatus;
+    if ( ! lidarResult ) {
+        lidarStatus = 0b10;
+    } else if ( ! (lidarResult.has_value()) ) {
+        lidarStatus = 0b11;
+    } else if ( auto& lidarData = lidarResult.value().assume_value();
+                lidarData.RangeStatus == 0 ) {
+        lidarStatus = 0b00;
+    } else {
+        lidarStatus = 0b01;
+    }
+
     auto block = memory::Pool::allocate( 12 );
     memset( block.get(), 0xAA, 12 );
+    viewAs< uint8_t >( block.get() + 1 ) = lidarStatus << 3;
     viewAs< uint8_t >( block.get() + 2 ) = connInt.pending();
     viewAs< uint8_t >( block.get() + 3 ) = connInt.available();
     viewAs< uint8_t >( block.get() + 4 ) = 42;
+    if ( lidarStatus & 0b10)
+        viewAs< uint8_t >( block.get() + 12 ) = lidarResult.value().assume_value().RangeMilliMeter;
     // ToDo: Assign remaining values
     interf.sendBlock( std::move( block ), 12 );
     // ToDo Interpret the header
@@ -97,45 +130,56 @@ void onCmdReceiveBlob( SpiInterface& spiInt, ConnComInterface& connInt ) {
 }
 
 
-void lidarGet( Lidar& lidar );
+void lidarGet( Lidar& lidar, std::optional< LidarResult >& );
 
-void lidarInit( Lidar& lidar ) {
+void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
     auto result = lidar.initialize().and_then( [&] ( auto ) {
             Dbg::blockingInfo("start measuring\n");
             return lidar.startMeasurement();
-        });
+    });
 
-        if ( !result ) {
-            Dbg::error( "\n Error init:" );
-            Dbg::error( result.assume_error().data() );
-            IdleTask::defer( std::bind( lidarInit, lidar ) );
-        } else {
-            IdleTask::defer( std::bind( lidarGet, lidar ) );
-        }
+    if ( !result ) {
+        // *currentLidarMeasurement = result;
+        Dbg::error( "\n Error init:" );
+        Dbg::error( result.assume_error().data() );
+        IdleTask::defer( std::bind( lidarInit, lidar, currentLidarMeasurement ) );
+    } else {
+        IdleTask::defer( std::bind( lidarGet, lidar, currentLidarMeasurement ) );
+    }
 }
 
-void lidarGet( Lidar& lidar ) {
+void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
 
     auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) {
-            return !ready
-            ? atoms::make_result_value< atoms::Void >()
-            : lidar.getRangingMeasurementData()
-                .and_then( [&] ( auto rangingMeasurementData ) {
-                    Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
-                        rangingMeasurementData.RangeStatus,
-                        rangingMeasurementData.RangeMilliMeter );
+        return !ready
+        ? atoms::Result< atoms::Void, std::string_view >::emplace_value()
+        : lidar.getRangingMeasurementData()
+            .and_then( [&] ( auto rangingMeasurementData ) {
+                Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
+                    rangingMeasurementData.RangeStatus,
+                    rangingMeasurementData.RangeMilliMeter );
 
-                    return lidar.clearInterruptAndStartMeasurement();
-                });
-        });
+                return lidar.clearInterruptAndStartMeasurement().and_then( [=] ( auto ) {
+                    return LidarResult::value( std::move( rangingMeasurementData ) );
+                } );
+            });
+    });
 
-        if ( !result ) {
-            Dbg::error( "\nError get: " );
-            Dbg::error( result.assume_error().data() );
-            IdleTask::defer( std::bind( lidarInit, lidar ) );
-        } else {
-            IdleTask::defer( std::bind( lidarGet, lidar ) );
+    
+    if ( !result ) {
+        currentLidarMeasurement = LidarResult::error( result.assume_error() );
+        Dbg::error( "\nError get: " );
+        Dbg::error( result.assume_error().data() );
+        IdleTask::defer( std::bind( lidarInit, lidar, currentLidarMeasurement ) );
+    } else {
+        if ( std::is_same_v< std::remove_cvref_t< decltype( result ) >, std::remove_cvref_t< decltype( lidar.startMeasurement() ) > > ) {
+            currentLidarMeasurement = std::nullopt;
+        } else if ( std::is_same_v< LidarResult, std::remove_cvref_t< decltype( result ) > > ) {
+            static_assert( std::is_same_v< LidarResult, std::remove_cvref_t< decltype( result ) > > );
+            currentLidarMeasurement = std::make_optional( result );
         }
+        IdleTask::defer( std::bind( lidarGet, lidar, currentLidarMeasurement ) );
+    }
 
 }
 
@@ -146,8 +190,8 @@ int main() {
 
     Dbg::blockingInfo( "Starting" );
 
-    Adc1.setup();
-    Adc1.enable();
+    // Adc1.setup();
+    // Adc1.enable();
 
     // Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
 
@@ -160,11 +204,10 @@ int main() {
 
     Lidar lidar( &*bsp::i2c, wait );
 
-    using LidarResult = decltype( std::declval<Lidar>().getMeasurementDataReady() );
-    std::optional< LidarResult > result;
+    std::optional< LidarResult > currentLidarMeasurement;
 
 
-    lidarInit( lidar );
+    lidarInit( lidar, currentLidarMeasurement );
     //IdleTask::defer( std::bind( lidarInit, lidar ) );
 
     /* ConnComInterface connComInterface( std::move( bsp::uart ).value() );
