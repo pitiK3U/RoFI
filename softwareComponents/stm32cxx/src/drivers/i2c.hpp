@@ -79,12 +79,12 @@ struct I2C: public Peripheral< I2C_TypeDef > {
         LL_I2C_EnableIT_ERR( _periph );
     }
 
-    template < typename container >
+    template < std::ranges::contiguous_range container >
     int write( const uint32_t peripheralAddress, const container& buffer ) {
         return _write( peripheralAddress, buffer.data(), buffer.size() );
     }
 
-    template < typename container >
+    template < std::ranges::contiguous_range container >
     int read( const uint32_t peripheralAddress, container& buffer ) {
         return _read( peripheralAddress, buffer.data(), buffer.size() );
     }
