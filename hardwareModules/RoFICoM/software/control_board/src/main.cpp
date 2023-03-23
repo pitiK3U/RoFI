@@ -79,7 +79,7 @@ void onCmdStatus( SpiInterface& interf, Block header,
     uint8_t lidarStatus;
     if ( ! lidarResult ) {
         lidarStatus = 0b10;
-    } else if ( ! (lidarResult.has_value()) ) {
+    } else if ( ! ( lidarResult.has_value() ) ) {
         lidarStatus = 0b11;
     } else if ( auto& lidarData = lidarResult.value().assume_value();
                 lidarData.RangeStatus == 0 ) {
@@ -149,18 +149,21 @@ void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurem
 }
 
 void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
+    using Data = LidarResult::value_type;
 
-    auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) {
-        return !ready
-        ? atoms::Result< atoms::Void, std::string_view >::emplace_value()
-        : lidar.getRangingMeasurementData()
+    auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) -> atoms::Result< std::optional< Data >, std::string_view >  {
+        if (!ready) {
+            return atoms::Result< std::optional< Data >, std::string_view >::value( std::nullopt );
+        }
+
+        return lidar.getRangingMeasurementData()
             .and_then( [&] ( auto rangingMeasurementData ) {
                 Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
                     rangingMeasurementData.RangeStatus,
                     rangingMeasurementData.RangeMilliMeter );
 
-                return lidar.clearInterruptAndStartMeasurement().and_then( [=] ( auto ) {
-                    return LidarResult::value( std::move( rangingMeasurementData ) );
+                return lidar.clearInterruptAndStartMeasurement().and_then( [&] ( auto ) {
+                    return atoms::Result< std::optional< Data >, std::string_view >::value( std::make_optional( rangingMeasurementData ) );
                 } );
             });
     });
@@ -172,11 +175,11 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         Dbg::error( result.assume_error().data() );
         IdleTask::defer( std::bind( lidarInit, lidar, currentLidarMeasurement ) );
     } else {
-        if ( std::is_same_v< std::remove_cvref_t< decltype( result ) >, std::remove_cvref_t< decltype( lidar.startMeasurement() ) > > ) {
+        std::optional< Data > data = result.assume_value();
+        if ( !data ) {
             currentLidarMeasurement = std::nullopt;
-        } else if ( std::is_same_v< LidarResult, std::remove_cvref_t< decltype( result ) > > ) {
-            static_assert( std::is_same_v< LidarResult, std::remove_cvref_t< decltype( result ) > > );
-            currentLidarMeasurement = std::make_optional( result );
+        } else {
+            currentLidarMeasurement = LidarResult::value( data.value() );
         }
         IdleTask::defer( std::bind( lidarGet, lidar, currentLidarMeasurement ) );
     }
