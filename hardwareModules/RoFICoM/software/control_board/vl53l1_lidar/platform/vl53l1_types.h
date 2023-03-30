@@ -49,6 +49,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #ifndef NULL
 #error "Error NULL definition should be done. Please add required include "
 #endif
@@ -110,5 +115,10 @@ typedef signed char int8_t;
  *
  * Given a floating point value f it's .16 bit point is (int)(f*(1<<16))*/
 typedef uint32_t FixPoint1616_t;
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VL53L1_TYPES_H_ */

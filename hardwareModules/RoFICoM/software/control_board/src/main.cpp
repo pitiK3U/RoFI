@@ -82,22 +82,22 @@ void onCmdStatus( SpiInterface& interf, Block header,
     } else if ( ! ( lidarResult.has_value() ) ) {
         lidarStatus = 0b11;
     } else if ( auto& lidarData = lidarResult.value().assume_value();
-                lidarData.RangeStatus == 0 ) {
+                lidarData.Status == 0 ) {
         lidarStatus = 0b00;
     } else {
         lidarStatus = 0b01;
     }
 
-    auto block = memory::Pool::allocate( 12 );
+    auto block = memory::Pool::allocate( 14 );
     memset( block.get(), 0xAA, 12 );
     viewAs< uint8_t >( block.get() + 1 ) = lidarStatus << 3;
     viewAs< uint8_t >( block.get() + 2 ) = connInt.pending();
     viewAs< uint8_t >( block.get() + 3 ) = connInt.available();
     viewAs< uint8_t >( block.get() + 4 ) = 42;
-    if ( lidarStatus & 0b10)
-        viewAs< uint8_t >( block.get() + 12 ) = lidarResult.value().assume_value().RangeMilliMeter;
+    if ( ~(lidarStatus & 0b10) )
+        viewAs< uint8_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
     // ToDo: Assign remaining values
-    interf.sendBlock( std::move( block ), 12 );
+    interf.sendBlock( std::move( block ), 14 );
     // ToDo Interpret the header
 }
 
@@ -159,8 +159,8 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         return lidar.getRangingMeasurementData()
             .and_then( [&] ( auto rangingMeasurementData ) {
                 Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
-                    rangingMeasurementData.RangeStatus,
-                    rangingMeasurementData.RangeMilliMeter );
+                    rangingMeasurementData.Status,
+                    rangingMeasurementData.Distance );
 
                 return lidar.clearInterruptAndStartMeasurement().and_then( [&] ( auto ) {
                     return atoms::Result< std::optional< Data >, std::string_view >::value( std::make_optional( rangingMeasurementData ) );
@@ -193,12 +193,12 @@ int main() {
 
     Dbg::blockingInfo( "Starting" );
 
-    // Adc1.setup();
-    // Adc1.enable();
+    Adc1.setup();
+    Adc1.enable();
 
-    // Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
+    Slider slider( Motor( bsp::pwm.value(), bsp::sliderMotorPin ), bsp::sliderRetrationLimit, bsp::sliderExpansionLimit );
 
-    // PowerSwitch powerInterface;
+    PowerSwitch powerInterface;
     // ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
  
     // TODO: use IdleTask::defer for hotplug lidar

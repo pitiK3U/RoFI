@@ -10,6 +10,7 @@ set(ROFICOM_MCU "STM32G071xx")
 set(ROFICOM_MCU_SPEC "STM32G071GBUx")
 
 file(GLOB_RECURSE LIDAR ./*.cpp ./*.c)
+message(STATUS "Files are ${LIDAR}")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=5")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
@@ -27,9 +28,9 @@ add_stm32_target(
         FILES ${LIDAR})
 target_include_directories(lidar PUBLIC
         .
-        ./core/inc
-        ./platform/inc)
+        ./core/
+        ./platform/)
 target_link_libraries(lidar
         g0_stm32cxx_i2c g0_stm32cxx_gpio atoms)
-target_compile_definitions(lidar PUBLIC VL53L1_DEBUG=1 PAL_EXTENDED=1)
+target_compile_definitions(lidar PUBLIC PAL_EXTENDED=1)
 
