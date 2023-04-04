@@ -12,11 +12,15 @@
 
 #include <stm32g0xx_ll_i2c.h>
 
+#include <i2c.port.hpp>
+
 struct I2CPin : public Gpio::Pin
 {
     I2CPin( Gpio::Pin&& pin ) : Gpio::Pin( pin ) {}
 
-    I2CPin& setupODAlternate( ) {
+    virtual int alternativeFun( I2C_TypeDef *periph ) = 0;
+
+    I2CPin& setupODAlternate( I2C_TypeDef *i2cPeriph ) {
         setupODOutput( true, true );
 
         assert( 0 <= _pos && _pos <= 15 );
@@ -25,7 +29,7 @@ struct I2CPin : public Gpio::Pin
         LL_GPIO_SetPinMode( _periph, pin, LL_GPIO_MODE_ALTERNATE );
 
         // TODO: create i2c.port.hpp file for setting up alternate function
-        auto alternateFunction = LL_GPIO_AF_6;
+        auto alternateFunction = alternativeFun( i2cPeriph );
         if ( pin <= 7 ) {
             LL_GPIO_SetAFPin_0_7( _periph, pin, alternateFunction );
         } else {
@@ -36,26 +40,33 @@ struct I2CPin : public Gpio::Pin
     }
 };
 
-struct SdaPin : public I2CPin
+struct SdaPin : public I2CPin, public detail::SdaPin< SdaPin >
 {
     using I2CPin::I2CPin;
+
+    int alternativeFun( I2C_TypeDef *periph ) final {
+        return detail::SdaPin< SdaPin >::alternativeFun( periph );
+    }
 };
 
-struct SclPin : public I2CPin
+struct SclPin : public I2CPin, public detail::SclPin< SclPin >
 {
     using I2CPin::I2CPin;
+
+    int alternativeFun( I2C_TypeDef *periph ) final {
+        return detail::SclPin< SclPin >::alternativeFun( periph );
+    }
 };
 
 // TODO: transaction address 7bit vs 10bit
-struct I2C: public Peripheral< I2C_TypeDef > {
+struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
     I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
         : Peripheral< I2C_TypeDef >( i2c )
     {
-        sdaPin.setupODAlternate();
-        sclPin.setupODAlternate();
+        sdaPin.setupODAlternate( _periph );
+        sclPin.setupODAlternate( _periph );
 
-        // TODO: enableClock();
-        LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_I2C2);
+        enableClock();
 
         LL_I2C_InitTypeDef I2C_InitStruct = { };
 
