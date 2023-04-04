@@ -103,15 +103,43 @@ public:
     }
 
 protected:
-    static uint32_t _getAdcChannel( GPIO_TypeDef */*port*/, int /*pos*/ ) {
+    static uint32_t _getAdcChannel( GPIO_TypeDef *port, int pos ) {
+         if ( port == GPIOA ) {
+            switch ( pos ) {
+                case 0: return LL_ADC_CHANNEL_0;
+                case 1: return LL_ADC_CHANNEL_1;
+                case 2: return LL_ADC_CHANNEL_2;
+                case 3: return LL_ADC_CHANNEL_3;
+                case 4: return LL_ADC_CHANNEL_4;
+                case 5: return LL_ADC_CHANNEL_5;
+                case 6: return LL_ADC_CHANNEL_6;
+                case 7: return LL_ADC_CHANNEL_7;
+            }
+        }
+        if ( port == GPIOB ) {
+            switch ( pos ) {
+                case 0: return LL_ADC_CHANNEL_8;
+                case 1: return LL_ADC_CHANNEL_9;
+                case 2: return LL_ADC_CHANNEL_10;
+                case 10: return LL_ADC_CHANNEL_11;
+                case 11: return LL_ADC_CHANNEL_15;
+                case 12: return LL_ADC_CHANNEL_16;
+            }
+        }
+        if ( port == GPIOC ) {
+            switch ( pos ) {
+                case 4: LL_ADC_CHANNEL_17;
+                case 5: LL_ADC_CHANNEL_18;
+            }
+        }
         assert( false && "Not implemented" );
         __builtin_trap();
     }
 
     static auto& _getAdc( GPIO_TypeDef */*port*/, int /*pos*/ ) {
+        return Adc1;
         assert( false && "Not implemented" );
         __builtin_trap();
-        return Adc1;
     }
 };
 
