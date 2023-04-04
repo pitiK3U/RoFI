@@ -62,13 +62,13 @@
 // Anonymous namespace is to hide symbols only into this compilation unit.
 namespace {
 // static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
-Lidar::waitUsFn waitUs;
+// Lidar::waitUsFn waitUs;
 I2C* pI2c = nullptr;
 }
 
-void _inner::initialize_platform( I2C* i2cPeriph, Lidar::waitUsFn _waitUs ) {
+void _inner::initialize_platform( I2C* i2cPeriph ) {
 	pI2c = i2cPeriph;
-	waitUs = _waitUs;
+	// waitUs = _waitUs;
 }
 
 template< std::size_t N >

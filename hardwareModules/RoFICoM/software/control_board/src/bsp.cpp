@@ -46,13 +46,30 @@ namespace {
 }
 
 namespace bsp {
-    const Gpio::Pin connectorSenseA = { 6, GPIOC };
-    const Gpio::Pin connectorSenseB = { 15, GPIOA };
-    const Gpio::Pin sliderRetrationLimit = { 4, GPIOB };
-    const Gpio::Pin sliderExpansionLimit = { 8, GPIOB };
-    const Gpio::Pin sliderMotorPin = { 14, GPIOC };
+    const Gpio::Pin connectorSenseA = { 13, GPIOC };
+    const Gpio::Pin connectorSenseB = { 14, GPIOC };
+    const Gpio::Pin internalSwitchPin = { 3, GPIOD };
+    const Gpio::Pin internalVoltagePin = { 0, GPIOA };
+    const Gpio::Pin internalCurrentPin = { 0, GPIOB };
+    const Gpio::Pin externalSwitchPin = { 2, GPIOD };
+    const Gpio::Pin externalVoltagePin = { 7, GPIOA };
+    const Gpio::Pin externalCurrentPin = { 1, GPIOB };
+    
     const Gpio::Pin spiCSPin = { 4, GPIOA };
+    const Gpio::Pin lidarEnablePin = { 0, GPIOD };
+    const Gpio::Pin lidarIRQPin = { 1, GPIOD };
 
+    const std::array< Gpio::Pin, 9 > posPins = {
+        Gpio::Pin {  2, GPIOB },
+        Gpio::Pin { 10, GPIOB },
+        Gpio::Pin { 11, GPIOB },
+        Gpio::Pin { 12, GPIOB },
+        Gpio::Pin { 13, GPIOB },
+        Gpio::Pin { 14, GPIOB },
+        Gpio::Pin { 15, GPIOB },
+        Gpio::Pin {  6, GPIOC },
+        Gpio::Pin {  7, GPIOC },    
+    };
 
     std::optional< Timer > timer;
     std::optional< Timer::Pwm > pwm;
@@ -60,7 +77,7 @@ namespace bsp {
     std::optional< Uart > uart;
 
     std::optional< I2C > i2c;
-    std::optional< Timer > microTimer;
+    // std::optional< Timer > microTimer;
 
     void setupBoard() {
         setupSystemClock();
@@ -72,14 +89,14 @@ namespace bsp {
         pwm->attachPin( GpioA[ 8 ] );
         timer->enable();
 
-        Motor motor( bsp::pwm.value(), GpioB[ 1 ] );
+        Motor motor( bsp::pwm.value(), GpioA[ 9 ] );
         motor.enable();
         motor.set( 0 );
         
         spi = Spi( SPI1,
             Slave(),
             MisoOn( GpioA[ 6 ] ),
-            SckOn( GpioB[ 3 ] ),
+            SckOn( GpioA[ 5 ] ),
             CsOn( spiCSPin )
         );
 
@@ -91,7 +108,11 @@ namespace bsp {
         uart->enable();
 
         i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ) );
-        microTimer = Timer( TIM2, FreqAndRes( cfg::MICROSECOND_FREQUENCY, UINT16_MAX ) );
+        // microTimer = Timer( TIM2, FreqAndRes( cfg::MICROSECOND_FREQUENCY, UINT16_MAX ) );
+
+        for ( auto posPin : posPins ) {
+            posPin.setupInput( false );
+        }
     }
 
 

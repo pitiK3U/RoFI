@@ -1,5 +1,7 @@
 #pragma once
 
+#undef NDEBUG
+#include <cassert>
 #include <cstdint>
 #include <string_view>
 
@@ -15,9 +17,9 @@
 // namespace that's used to propagate needed peripherals/functions
 // to library's `vl53l1_plaftorm.cpp`
 namespace _inner {
-    using waitUsFn = void (*)(uint32_t);
+    // using waitUsFn = void (*)(uint32_t);
 
-    void initialize_platform( I2C*, waitUsFn );
+    void initialize_platform( I2C* );
 }
 
 struct Lidar
@@ -28,13 +30,13 @@ struct Lidar
     using Result = atoms::Result< T, E >;
 
     using result_type = Result< Void, std::string_view >;
-    using waitUsFn = _inner::waitUsFn;
+    // using waitUsFn = _inner::waitUsFn;
 
     const int8_t VL53L1X_ERROR_NONE = 0;
 
-    Lidar( I2C* i2c, waitUsFn waitUs , const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
+    Lidar( I2C* i2c, const Gpio::Pin lidarEnable, const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
         : _i2c( i2c )
-        , _waitUs( waitUs )
+        , _lidarEnable( lidarEnable )
         , _deviceAddress( deviceAddress )
         , _communicationSpeed( commSpeed )
     {
@@ -49,7 +51,10 @@ struct Lidar
 
     result_type initialize()
     {
-        _inner::initialize_platform( _i2c, _waitUs );
+        _lidarEnable.setupPPOutput( );
+        _lidarEnable.write( true );
+        assert( _lidarEnable.read() );
+        _inner::initialize_platform( _i2c );
 
         VL53L1X_ERROR status;
 
@@ -143,11 +148,27 @@ struct Lidar
         return atoms::result_value< VL53L1X_Result_t >( rangingMeasurementData );
     }
 
+    Result< uint16_t, int8_t > getSensorId()
+    {
+        _lidarEnable.setupODOutput( true, true );
+        _lidarEnable.write( true );
+        _inner::initialize_platform( _i2c );
+
+        uint16_t id = 0;
+        VL53L1X_ERROR status = VL53L1X_GetSensorId( _deviceAddress, &id );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( status );
+        }
+
+        return atoms::result_value< uint16_t >( id );
+    }
+
 private:
     std::string_view errorToString( VL53L1X_ERROR err );
 
     I2C* _i2c;
-    waitUsFn _waitUs;
+    Gpio::Pin _lidarEnable;
+    // waitUsFn _waitUs;
 
     // VL53L1_Dev_t _device;
 

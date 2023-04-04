@@ -28,10 +28,19 @@ extern void SystemCoreClockUpdate(void);
 namespace bsp {
     extern const Gpio::Pin connectorSenseA;
     extern const Gpio::Pin connectorSenseB;
-    extern const Gpio::Pin sliderRetrationLimit;
-    extern const Gpio::Pin sliderExpansionLimit;
-    extern const Gpio::Pin sliderMotorPin;
+    extern const Gpio::Pin internalSwitchPin;
+    extern const Gpio::Pin internalVoltagePin;
+    extern const Gpio::Pin internalCurrentPin;
+    extern const Gpio::Pin externalSwitchPin;
+    extern const Gpio::Pin externalVoltagePin;
+    extern const Gpio::Pin externalCurrentPin;
+
+
     extern const Gpio::Pin spiCSPin;
+    extern const Gpio::Pin lidarEnablePin;
+    extern const Gpio::Pin lidarIRQPin;
+    extern const std::array< Gpio::Pin, 9 > posPins;
+
 
     extern std::optional< Timer > timer;
     extern std::optional< Timer::Pwm > pwm;
@@ -40,7 +49,7 @@ namespace bsp {
 
     extern std::optional< I2C > i2c;
     // microsecond timer needed for lidar waiting
-    extern std::optional< Timer > microTimer;
+    // extern std::optional< Timer > microTimer;
 
     /**
      * Function to setup your board, MUST be called before using 

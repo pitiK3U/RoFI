@@ -8,8 +8,8 @@
 
 std::string_view Lidar::errorToString( VL53L1X_ERROR err )
     {
-        static char buffer[32];
-        std::sprintf(buffer, "%d", err);
+        static char buffer[32] = {};
+        std::snprintf(buffer, 32, "%d", err);
         return std::string_view( buffer );
         // Stolen from `core/src/vl53l1_error_strings.c:102`
         /*
