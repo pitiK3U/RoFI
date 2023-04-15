@@ -100,8 +100,10 @@ enum ConnectorStateFlags {
     PositionExpanded  = 1 << 0,
     InternalConnected = 1 << 1,
     ExternalConnected = 1 << 2,
+    LidarDistanceMode = 0b11 << 3,
     MatingSide        = 1 << 8,
     Orientation       = 0b11 << 9,
+    LidarStatus       = 0b11 << 11,
 };
 
 struct ConnectorStateImpl: public ConnectorState {
@@ -122,6 +124,9 @@ struct ConnectorStateImpl: public ConnectorState {
         s.connected = flags & ConnectorStateFlags::MatingSide;
         s.orientation = ConnectorOrientation (
             ( flags & ConnectorStateFlags::Orientation ) >> 9 );
+        s.lidarStatus = rofi::hal::LidarStatus(
+            ( flags & ConnectorStateFlags::LidarStatus ) >> 11
+        );
 
         s.pendingSend = as< uint8_t >( d + 2 );
         s.pendingReceive = as< uint8_t >( d + 3 );
@@ -129,6 +134,8 @@ struct ConnectorStateImpl: public ConnectorState {
         s.internalCurrent = as< int16_t >( d + 6 ) / 255.0;
         s.externalVoltage = as< int16_t >( d + 8 ) / 255.0;
         s.externalCurrent = as< int16_t >( d + 10 ) / 255.0;
+        s.distance = as< uint16_t >( d + 12 );
+
         return s;
     }
 };
@@ -199,7 +206,7 @@ public:
     ConnectorBus( spi_host_device_t bus, gpio_num_t dataPin, gpio_num_t clkPin,
         int clkFrequency)
         : _commandQueue( 64 ),
-          _dmaBuffer( static_cast< uint8_t* >( heap_caps_malloc( 12 , MALLOC_CAP_DMA ) ) )
+          _dmaBuffer( static_cast< uint8_t* >( heap_caps_malloc( 14 , MALLOC_CAP_DMA ) ) )
     {
         using namespace rofi::esp32;
 
@@ -492,7 +499,7 @@ void ConnectorBus::run( StatusCommand c ) {
 
     slaveDelay();
 
-    const int payloadSize = 12;
+    const int payloadSize = 14;
     spiRead( _spiDev, _dmaBuffer, payloadSize );
     transaction.end();
 
@@ -756,7 +763,7 @@ public:
                                     bsp::gammaRatio )
         } ),
     #endif
-        _connectorBus( HSPI_HOST, GPIO_NUM_19, GPIO_NUM_18, 50'000'000 ),
+        _connectorBus( HSPI_HOST, GPIO_NUM_19, GPIO_NUM_18, 10'000'000 ),
         _connectors( {
             std::make_shared< ConnectorLocal >( &_connectorBus, GPIO_NUM_27 ),
             std::make_shared< ConnectorLocal >( &_connectorBus, GPIO_NUM_25 ),
