@@ -188,6 +188,20 @@ enum class ConnectorLine : bool {
     External = 1,
 };
 
+enum class LidarStatus : signed char {
+    /// Measured data are fully valid
+    Valid = 0b00,
+    /// Measured data are outside of lidar available range 
+    /// meaning that data could be valid but DOESN'T HAVE TO BE.
+    /// Usually means that measured data is below or above of range we can measure.
+    /// Also could be caused by wrong distance mode, setting different one could resolve this.
+    OutsideRange = 0b01,
+    /// Status command was received before lidar initilized and received measurements.
+    NotMeasured = 0b10,
+    /// Usually error with lidar communication i.e. Lidar not connected, i2c error, ...
+    Error = 0b11,
+};
+
 /**
  * \brief Connector state descriptor.
  */
@@ -210,6 +224,10 @@ struct ConnectorState {
     float externalVoltage = 0.f;
     /// External current of the Connector.
     float externalCurrent = 0.f;
+    /// Status of lidar measurement.
+    LidarStatus lidarStatus = LidarStatus::NotMeasured;
+    /// Lidar measured distance in mm. Validity depends on `lidarStatus`.
+    uint16_t distance = 0;
 };
 
 /**
