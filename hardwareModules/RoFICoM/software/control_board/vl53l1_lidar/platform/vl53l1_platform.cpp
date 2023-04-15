@@ -59,6 +59,9 @@
 
 #include <lidar.hpp>
 
+#undef NDEBUG
+#include <cassert>
+
 // Anonymous namespace is to hide symbols only into this compilation unit.
 namespace {
 // static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
@@ -117,9 +120,10 @@ int8_t VL53L1_WriteMulti( uint16_t slaveAddress, uint16_t registerAddress, uint8
 
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
+			assert( i - 2 < bufferSize );
 			uint8_t data = i < 2 ? address[i] : transmitBuffer[i-2];
             LL_I2C_TransmitData8( I2C2, data );
-        ++i;
+        	++i;
         }
     }
 
@@ -143,8 +147,9 @@ static int8_t _I2C_RegisterAdress( uint16_t slaveAddress, const uint16_t Registe
 
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
+			assert( i < sizeof(address) );
             LL_I2C_TransmitData8( I2C2, address[i] );
-        ++i;
+        	++i;
         }
     }
 
@@ -163,6 +168,7 @@ int8_t VL53L1_ReadMulti(uint16_t slaveAddress, uint16_t registerAddress, uint8_t
     uint32_t i = 0;
     while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
         if ( LL_I2C_IsActiveFlag_RXNE( I2C2 ) ) {
+			assert( i < bufferSize );
             transmitBuffer[i] = LL_I2C_ReceiveData8( I2C2 );
 			++i;
         }

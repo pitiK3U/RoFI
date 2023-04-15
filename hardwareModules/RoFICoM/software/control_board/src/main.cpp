@@ -66,21 +66,21 @@ void onCmdVersion( SpiInterface& interf ) {
 }
 
 void onCmdStatus( SpiInterface& interf, Block header,
-    ConnComInterface& connInt, Slider& slider, std::optional< LidarResult >& lidarResult )
+    ConnComInterface& connInt, /* Slider& slider, */ std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
     uint16_t mask = viewAs< uint16_t >( header.get() + 2 );
-    if ( mask & ConnectorStateFlags::PositionExpanded ) {
-        if ( status & ConnectorStateFlags::PositionExpanded )
-            slider.expand();
-        else
-            slider.retract();
-    }
+    // if ( mask & ConnectorStateFlags::PositionExpanded ) {
+    //     if ( status & ConnectorStateFlags::PositionExpanded )
+    //         slider.expand();
+    //     else
+    //         slider.retract();
+    // }
 
     uint8_t lidarStatus;
-    if ( ! lidarResult ) {
+    if ( ! lidarResult.has_value() ) {
         lidarStatus = 0b10;
-    } else if ( ! ( lidarResult.has_value() ) ) {
+    } else if ( ! ( lidarResult.value().has_value() ) ) {
         lidarStatus = 0b11;
     } else if ( auto& lidarData = lidarResult.value().assume_value();
                 lidarData.Status == 0 ) {
@@ -90,13 +90,13 @@ void onCmdStatus( SpiInterface& interf, Block header,
     }
 
     auto block = memory::Pool::allocate( 14 );
-    memset( block.get(), 0xAA, 12 );
+    memset( block.get(), 0xAA, 14 );
     viewAs< uint8_t >( block.get() + 1 ) = lidarStatus << 3;
     viewAs< uint8_t >( block.get() + 2 ) = connInt.pending();
     viewAs< uint8_t >( block.get() + 3 ) = connInt.available();
     viewAs< uint8_t >( block.get() + 4 ) = 42;
     if ( !(lidarStatus & 0b10) )
-        viewAs< uint8_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
+        viewAs< uint16_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
     // ToDo: Assign remaining values
     interf.sendBlock( std::move( block ), 14 );
     // ToDo Interpret the header
@@ -159,10 +159,6 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
 
         return lidar.getRangingMeasurementData()
             .and_then( [&] ( auto rangingMeasurementData ) {
-                Dbg::blockingInfo( "Range status: %d, Range: %d mm\n",
-                    rangingMeasurementData.Status,
-                    rangingMeasurementData.Distance );
-
                 return lidar.clearInterruptAndStartMeasurement().and_then( [&] ( auto ) {
                     return atoms::Result< std::optional< Data >, std::string_view >::value( std::make_optional( rangingMeasurementData ) );
                 } );
@@ -178,7 +174,7 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
     } else {
         std::optional< Data > data = result.assume_value();
         if ( !data ) {
-            currentLidarMeasurement = std::nullopt;
+            // currentLidarMeasurement = std::nullopt;
         } else {
             currentLidarMeasurement = LidarResult::value( data.value() );
         }
@@ -209,18 +205,20 @@ int main() {
 
     std::optional< LidarResult > currentLidarMeasurement;
  
-    // auto id = lidar.getSensorId();
-    // if ( id.has_value() ) {
-    //     Dbg::blockingInfo("ID: %u", id.assume_value() );
-    // } else {
-    //     Dbg::error("Err: %d", id.assume_error() );
+    // while (true) {
+    //     auto id = lidar.getSensorId();
+    //     if ( id.has_value() ) {
+    //         Dbg::blockingInfo("ID: %u", id.assume_value() );
+    //     } else {
+    //         Dbg::error("Err: %d", id.assume_error() );
+    //     }
     // }
     // assert( false );
 
     // auto init = lidar.initialize();
     // assert( init );
 
-    // lidarInit( lidar, currentLidarMeasurement );
+    lidarInit( lidar, currentLidarMeasurement );
 
     ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
@@ -232,7 +230,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                // onCmdStatus( spiInterface, std::move( b ), connComInterface, slider, currentLidarMeasurement );
+                onCmdStatus( spiInterface, std::move( b ), connComInterface, /* slider, */ currentLidarMeasurement );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );
@@ -249,14 +247,15 @@ int main() {
         } );
     connComInterface.onNewBlob( [&] { spiInterface.interruptMaster(); } );
 
-    auto pin = bsp::internalCurrentPin;
+    auto pin = bsp::externalVoltagePin;
     pin.setupAnalog();
 
     Dbg::blockingInfo( "Ready for operation" );
 
-    Dbg::blockingInfo( "Current: %d", pin.readAnalog() );
-
     while ( true ) {
+        auto read = pin.readAnalog();
+        // Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
+
         // slider.run();
         size_t readCount = 0;
         size_t readPosSum = 0;
@@ -267,7 +266,8 @@ int main() {
             }
             ++i;
         }
-        // Dbg::blockingInfo( "Pos: %f %%", 100.0f * (float)readPosSum / (readCount != 0 ? readCount : 1)  / (bsp::posPins.size() - 1) );
+        const auto position = 100 * readPosSum / ( readCount != 0 ? readCount : 1 )  / ( bsp::posPins.size() - 1 );
+        // Dbg::blockingInfo( "Pos: %f %%", 100 * readPosSum / (readCount != 0 ? readCount : 1)  / (bsp::posPins.size() - 1) );
 
         powerInterface.run();
         if ( connectorStatus.run() )
@@ -292,6 +292,20 @@ int main() {
         connComInterface.run();
 
         IdleTask::run();
+        if ( currentLidarMeasurement.has_value() ) {
+            if ( currentLidarMeasurement.value().has_value() ){
+                const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
+                Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
+                    rangingMeasurementData.Status,
+                    rangingMeasurementData.Distance );
+            } else {
+                Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
+            }
+        } else {
+            Dbg::blockingInfo( "Data not yet measured\n" );
+        }
+
+
     }
 }
 

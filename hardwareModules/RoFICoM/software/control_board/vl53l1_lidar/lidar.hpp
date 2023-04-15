@@ -22,8 +22,7 @@ namespace _inner {
     void initialize_platform( I2C* );
 }
 
-struct Lidar
-{
+struct Lidar {
     using Void = atoms::Void;
 
     template< typename T, typename E = std::string >
@@ -53,7 +52,6 @@ struct Lidar
     {
         _lidarEnable.setupPPOutput( );
         _lidarEnable.write( true );
-        assert( _lidarEnable.read() );
         _inner::initialize_platform( _i2c );
 
         VL53L1X_ERROR status;
@@ -103,17 +101,17 @@ struct Lidar
         return atoms::make_result_value< Void >();
     }
 
+    /*
     result_type waitMeasurementDataReady()
     {
-        /*
         VL53L1X_ERROR status = VL53L1_WaitMeasurementDataReady( &_device );
         if ( status != VL53L1X_ERROR_NONE ) {
             return result_type::error( errorToString( status ) );
         }
-        */
 
         return atoms::make_result_value< Void >();
     }
+    */
 
     Result< bool, std::string_view > getMeasurementDataReady()
     {
