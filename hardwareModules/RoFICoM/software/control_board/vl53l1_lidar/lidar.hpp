@@ -28,12 +28,22 @@ struct Lidar {
     template< typename T, typename E = std::string >
     using Result = atoms::Result< T, E >;
 
-    using result_type = Result< Void, std::string_view >;
+    using error_type = std::string_view;
+    using result_type = Result< Void,  error_type >;
     // using waitUsFn = _inner::waitUsFn;
+
+    using address_type = uint16_t;
+    using data_type = VL53L1X_Result_t;
 
     const int8_t VL53L1X_ERROR_NONE = 0;
 
-    Lidar( I2C* i2c, const Gpio::Pin lidarEnable, const uint32_t deviceAddress = 0x52, const uint32_t commSpeed = 400 )
+    enum class DistanceMode : uint16_t {
+        Autonomous = 0,
+        Short      = 1,
+        Long       = 2,
+    };
+
+    Lidar( I2C* i2c, const Gpio::Pin lidarEnable, const address_type deviceAddress = 0x52, const uint32_t commSpeed = 400 )
         : _i2c( i2c )
         , _lidarEnable( lidarEnable )
         , _deviceAddress( deviceAddress )
@@ -113,12 +123,12 @@ struct Lidar {
     }
     */
 
-    Result< bool, std::string_view > getMeasurementDataReady()
+    Result< bool, error_type > getMeasurementDataReady()
     {
         uint8_t ready;
         VL53L1X_ERROR status = VL53L1X_CheckForDataReady( _deviceAddress, &ready );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return Result< bool, std::string_view >::error( errorToString( status ) );
+            return Result< bool, error_type >::error( errorToString( status ) );
         }
 
         return atoms::make_result_value< bool >( bool(ready) );
@@ -134,16 +144,88 @@ struct Lidar {
         return atoms::make_result_value< Void >();
     }
 
-    Result< VL53L1X_Result_t, std::string_view > getRangingMeasurementData()
+    Result< data_type, error_type > getRangingMeasurementData()
     {
-        VL53L1X_Result_t rangingMeasurementData;
+        data_type rangingMeasurementData;
 
         VL53L1X_ERROR status = VL53L1X_GetResult( _deviceAddress, &rangingMeasurementData );
         if ( status != VL53L1X_ERROR_NONE ) {
             return atoms::result_error( errorToString( status ) );
         }
 
-        return atoms::result_value< VL53L1X_Result_t >( rangingMeasurementData );
+        if ( _isAutonomousMode ) {
+            _handleAutonomousMode( rangingMeasurementData );
+        }
+
+        return atoms::result_value< data_type >( rangingMeasurementData );
+    }
+
+    Result< DistanceMode, error_type > getDistanceMode()
+    {
+        if ( _isAutonomousMode ) {
+            return atoms::result_value( DistanceMode::Autonomous );
+        }
+
+        return _getDistanceMode();
+    }
+
+    result_type setDistanceMode( DistanceMode mode )
+    {
+        _isAutonomousMode = mode == DistanceMode::Autonomous; 
+
+        uint16_t setMode = static_cast< decltype( setMode ) >( _isAutonomousMode ? _defaultMode : mode );
+
+        return _setDistanceMode( setMode );
+    }
+
+    result_type setTimingBudget( uint16_t timingBudget )
+    {
+        VL53L1X_ERROR status = VL53L1X_SetTimingBudgetInMs( _deviceAddress, timingBudget );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::make_result_value< Void >();
+    }
+
+    Result< uint16_t, error_type > getTimingBudget()
+    {
+        uint16_t timingBudget = 0;
+        VL53L1X_ERROR status = VL53L1X_GetTimingBudgetInMs( _deviceAddress, &timingBudget );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::result_value( timingBudget );
+    }
+
+    result_type setInterMeasurement( uint32_t interMeasurement )
+    {
+        auto timingBudget = getTimingBudget();
+        if ( !timingBudget.has_value() ){
+            return atoms::result_error( timingBudget.assume_error() );
+        }
+        if ( interMeasurement < timingBudget.assume_value() ) {
+            // TODO: Handle this 
+        }
+
+        VL53L1X_ERROR status = VL53L1X_SetInterMeasurementInMs( _deviceAddress, interMeasurement );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::make_result_value< Void >();
+    }
+
+    Result< uint16_t, error_type > getInterMeasurement()
+    {
+        uint16_t interMeasurement = 0;
+        VL53L1X_ERROR status = VL53L1X_GetInterMeasurementInMs( _deviceAddress, &interMeasurement );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::result_value( interMeasurement );
     }
 
     Result< uint16_t, int8_t > getSensorId()
@@ -162,7 +244,79 @@ struct Lidar {
     }
 
 private:
-    std::string_view errorToString( VL53L1X_ERROR err );
+    result_type _setDistanceMode( uint16_t mode )
+    {
+        // This is specified by the VL53L1X library
+        assert( mode == 1 || mode == 2 );
+
+        VL53L1X_ERROR status = VL53L1X_SetDistanceMode( _deviceAddress, mode );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::result_error( errorToString( status ) );
+    }
+
+    Result< DistanceMode, error_type > _getDistanceMode()
+    {
+        uint16_t distanceMode;
+        VL53L1X_ERROR status = VL53L1X_GetDistanceMode( _deviceAddress,  &distanceMode );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorToString( status ) );
+        }
+
+        return atoms::result_value( static_cast< DistanceMode >( distanceMode ) );
+    }
+
+    void _handleAutonomousMode( const data_type& data )
+    {
+        /// From manual um2510
+        enum DataStatus {
+            RangeValid  = 0,
+            SigmaFail   = 1,
+            SignalFail  = 2,
+            OutOfBounds = 4,
+            WrapAround  = 7,            
+        };
+
+        auto modeRes = _getDistanceMode();
+        // In case communication failed the set mode is irrelevant
+        if ( !modeRes.has_value() )
+            return;
+        auto mode = modeRes.assume_value();
+
+        auto threshold = 200;
+
+        switch (mode) {
+        case DistanceMode::Short:{
+            if (
+                data.Status == SigmaFail
+                || data.Status == OutOfBounds
+                || data.Status == WrapAround
+            ) {
+                static_cast< void >( _setDistanceMode( uint16_t( DistanceMode::Long ) ) );    
+            }
+            break;
+            }
+        case DistanceMode::Long: {
+            if (
+                data.Status == RangeValid
+                && mode == DistanceMode::Long
+                && data.Distance <= 1300 - threshold)
+            {
+                // Assume the distance is short enough to use short mode for better
+                // immunity against ambient light.
+                static_cast< void >( _setDistanceMode( uint16_t( DistanceMode::Short ) ) );
+            }
+            break;
+            }
+        default:
+            // TODO: std::unreachable();
+            break;
+        }
+    }
+
+    error_type errorToString( VL53L1X_ERROR err );
 
     I2C* _i2c;
     Gpio::Pin _lidarEnable;
@@ -170,9 +324,12 @@ private:
 
     // VL53L1_Dev_t _device;
 
-    uint32_t _deviceAddress;
+    address_type _deviceAddress;
     uint32_t _communicationSpeed;
 
-    const uint32_t _defaultAddress = 0x52;
+    bool _isAutonomousMode = true;
+    
+    const address_type _defaultAddress = 0x52;
+    const DistanceMode _defaultMode = DistanceMode::Short;
 };
 
