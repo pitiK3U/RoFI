@@ -59,7 +59,7 @@ namespace bsp {
     const Gpio::Pin lidarEnablePin = { 0, GPIOD };
     const Gpio::Pin lidarIRQPin = { 1, GPIOD };
 
-    const std::array< Gpio::Pin, 9 > posPins = {
+    const std::array< Gpio::Pin, 10 > posPins = {
         Gpio::Pin {  2, GPIOB },
         Gpio::Pin { 10, GPIOB },
         Gpio::Pin { 11, GPIOB },
@@ -68,11 +68,13 @@ namespace bsp {
         Gpio::Pin { 14, GPIOB },
         Gpio::Pin { 15, GPIOB },
         Gpio::Pin {  6, GPIOC },
-        Gpio::Pin {  7, GPIOC },    
+        Gpio::Pin {  7, GPIOC },
+        Gpio::Pin { 10, GPIOA },
     };
 
     std::optional< Timer > timer;
     std::optional< Timer::Pwm > pwm;
+    std::optional< Motor > motor;
     std::optional< Spi > spi;
     std::optional< Uart > uart;
 
@@ -89,9 +91,9 @@ namespace bsp {
         pwm->attachPin( GpioA[ 8 ] );
         timer->enable();
 
-        Motor motor( bsp::pwm.value(), GpioA[ 9 ] );
-        motor.enable();
-        motor.set( 0 );
+        motor = Motor( bsp::pwm.value(), GpioA[ 9 ] );
+        motor->enable();
+        motor->set( 0 );
         
         spi = Spi( SPI1,
             Slave(),
@@ -109,10 +111,6 @@ namespace bsp {
 
         i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ) );
         // microTimer = Timer( TIM2, FreqAndRes( cfg::MICROSECOND_FREQUENCY, UINT16_MAX ) );
-
-        for ( auto posPin : posPins ) {
-            posPin.setupInput( false );
-        }
     }
 
 

@@ -66,16 +66,16 @@ void onCmdVersion( SpiInterface& interf ) {
 }
 
 void onCmdStatus( SpiInterface& interf, Block header,
-    ConnComInterface& connInt, /* Slider& slider, */ std::optional< LidarResult >& lidarResult )
+    ConnComInterface& connInt, Slider& slider, std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
     uint16_t mask = viewAs< uint16_t >( header.get() + 2 );
-    // if ( mask & ConnectorStateFlags::PositionExpanded ) {
-    //     if ( status & ConnectorStateFlags::PositionExpanded )
-    //         slider.expand();
-    //     else
-    //         slider.retract();
-    // }
+    if ( mask & ConnectorStateFlags::PositionExpanded ) {
+        if ( status & ConnectorStateFlags::PositionExpanded )
+            slider.expand();
+        else
+            slider.retract();
+    }
 
     uint8_t lidarStatus;
     if ( ! lidarResult.has_value() ) {
@@ -193,7 +193,7 @@ int main() {
     Adc1.setup();
     Adc1.enable();
 
-    // Slider slider( Motor( bsp::pwm.value(), GpioA[0] ), GpioA[0], GpioA[0] );
+    Slider slider( std::move( bsp::motor ).value(), bsp::posPins );
     PowerSwitch powerInterface;
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
  
@@ -218,7 +218,7 @@ int main() {
     // auto init = lidar.initialize();
     // assert( init );
 
-    lidarInit( lidar, currentLidarMeasurement );
+    // lidarInit( lidar, currentLidarMeasurement );
 
     ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
@@ -230,7 +230,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                onCmdStatus( spiInterface, std::move( b ), connComInterface, /* slider, */ currentLidarMeasurement );
+                onCmdStatus( spiInterface, std::move( b ), connComInterface, slider, currentLidarMeasurement );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );
@@ -247,27 +247,23 @@ int main() {
         } );
     connComInterface.onNewBlob( [&] { spiInterface.interruptMaster(); } );
 
-    auto pin = bsp::externalVoltagePin;
-    pin.setupAnalog();
-
     Dbg::blockingInfo( "Ready for operation" );
 
     while ( true ) {
-        auto read = pin.readAnalog();
-        // Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
-
-        // slider.run();
-        size_t readCount = 0;
-        size_t readPosSum = 0;
-        for ( size_t i = 0; auto posPin : bsp::posPins ) {
+        Dbg::blockingInfo( "state: %d", slider._currentState );
+        auto readCount = 0;
+        auto readPosSum = 0;
+        for ( auto i = 0; auto posPin : bsp::posPins ) {
             if ( ! posPin.read() ) {
                 ++readCount;
                 readPosSum += i;
             }
             ++i;
         }
-        const auto position = 100 * readPosSum / ( readCount != 0 ? readCount : 1 )  / ( bsp::posPins.size() - 1 );
-        // Dbg::blockingInfo( "Pos: %f %%", 100 * readPosSum / (readCount != 0 ? readCount : 1)  / (bsp::posPins.size() - 1) );
+        Dbg::blockingInfo( "position: %d", 100 * readPosSum / ( readCount != 0 ? readCount : 1 )  / ( bsp::posPins.size() - 1 ) );
+        // Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
+
+        slider.run();
 
         powerInterface.run();
         if ( connectorStatus.run() )
@@ -277,33 +273,38 @@ int main() {
             char chr = Dbg::get();
             switch( chr ) {
             case 'e':
-                // slider.expand();
-                Dbg::info("Expanding");
+                slider.expand();
+                Dbg::blockingInfo("Expanding");
                 break;
             case 'r':
-                // slider.retract();
-                Dbg::info("Retracting");
+                slider.retract();
+                Dbg::blockingInfo("Retracting");
+                break;
+            case 's':
+                slider.stop();
+                Dbg::blockingInfo("Stopping");
                 break;
             default:
                 Dbg::error( "DBG received: %c, %d", chr, int( chr ) );
             }
         }
         // Dbg::error("%d, %d", GpioB[ 4 ].read(), GpioB[ 8 ].read());
-        connComInterface.run();
+        // connComInterface.run();
 
         IdleTask::run();
-        if ( currentLidarMeasurement.has_value() ) {
-            if ( currentLidarMeasurement.value().has_value() ){
-                const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
-                Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
-                    rangingMeasurementData.Status,
-                    rangingMeasurementData.Distance );
-            } else {
-                Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
-            }
-        } else {
-            Dbg::blockingInfo( "Data not yet measured\n" );
-        }
+        // REMOVE:
+        // if ( currentLidarMeasurement.has_value() ) {
+        //     if ( currentLidarMeasurement.value().has_value() ){
+        //         const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
+        //         Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
+        //             rangingMeasurementData.Status,
+        //             rangingMeasurementData.Distance );
+        //     } else {
+        //         Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
+        //     }
+        // } else {
+        //     Dbg::blockingInfo( "Data not yet measured\n" );
+        // }
 
 
     }

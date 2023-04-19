@@ -1,8 +1,11 @@
+#pragma once
+
 #include <cassert>
 #include <optional>
 
 #include <system/dbg.hpp>
 
+#include "motor.hpp"
 
 #include <drivers/gpio.hpp>
 #include <drivers/i2c.hpp>
@@ -10,9 +13,7 @@
 #include <drivers/timer.hpp>
 #include <drivers/uart.hpp>
 
-#pragma once
-
-Dbg &dbgInstance();
+extern Dbg &dbgInstance();
 
 extern void SystemCoreClockUpdate(void);
 
@@ -39,11 +40,12 @@ namespace bsp {
     extern const Gpio::Pin spiCSPin;
     extern const Gpio::Pin lidarEnablePin;
     extern const Gpio::Pin lidarIRQPin;
-    extern const std::array< Gpio::Pin, 9 > posPins;
+    extern const std::array< Gpio::Pin, 10 > posPins;
 
 
     extern std::optional< Timer > timer;
     extern std::optional< Timer::Pwm > pwm;
+    extern std::optional< Motor > motor;
     extern std::optional< Spi > spi;
     extern std::optional< Uart > uart;
 
