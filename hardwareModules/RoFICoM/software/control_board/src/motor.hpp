@@ -79,20 +79,21 @@ public:
 
     void stop() {
         _goal = State::Unknown;
+        _currentState = State::Unknown;
         _onStateChange();
-        _move();
+        // _move();
     }
 
     void run() {
         const auto pos = _position();
         if ( _goal == State::Retracted ) {
-            if ( pos <= _retractedPosition )
+            if ( pos - _endThreshold <= _retractedPosition )
                 _set( State::Retracted );
             else
                 _set( State::Retracting );
         }
         else if ( _goal == State::Expanded ) {
-            if ( pos >= _expandedPosition )
+            if ( pos + _endThreshold >= _expandedPosition )
                 _set( State::Expanded );
             else
                 _set( State::Expanding );
@@ -101,13 +102,13 @@ public:
     }
 // TODO: private:
     void _move() {
-        const int MAX_POWER = 80;
+        const int MAX_POWER = 50;
         const int pos = _position();
         if ( _currentState == State::Expanding )
-            _motor.set( _coef( pos ) * MAX_POWER );
-        else if ( _currentState == State::Retracting )
             _motor.set( _coef( pos ) * -MAX_POWER );
-        else if ( _currentState == State::Expanded || _currentState == State::Retracted ) 
+        else if ( _currentState == State::Retracting )
+            _motor.set( _coef( pos ) * MAX_POWER );
+        else // if ( _currentState == State::Expanded || _currentState == State::Retracted ) 
             _motor.set( 0 );
     }
 
@@ -134,8 +135,12 @@ public:
     float _coef( int position ) {
         const int threshold = 30;
         const int positionFromGoal = std::abs( position - _goalPosition );
-        if ( threshold <= positionFromGoal ) {
-            return (float)positionFromGoal / 100;
+        if (positionFromGoal <= _endThreshold ) {
+            return 0;
+        } else if ( positionFromGoal <= threshold ) {
+            const float min_coef = 0.5f;
+            float coef = float(positionFromGoal) / 100 + 0.5f;
+            return std::max(coef, min_coef);
         }
         return 1;
     }
@@ -160,5 +165,6 @@ public:
     uint8_t _goalPosition;
     const uint8_t _retractedPosition = 0;
     const uint8_t _expandedPosition = 100;
+    const uint8_t _endThreshold = 15;
 
 };

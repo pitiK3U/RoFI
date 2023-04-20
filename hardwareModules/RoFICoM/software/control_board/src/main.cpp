@@ -250,7 +250,6 @@ int main() {
     Dbg::blockingInfo( "Ready for operation" );
 
     while ( true ) {
-        Dbg::blockingInfo( "state: %d", slider._currentState );
         auto readCount = 0;
         auto readPosSum = 0;
         for ( auto i = 0; auto posPin : bsp::posPins ) {
@@ -264,6 +263,7 @@ int main() {
         // Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
 
         slider.run();
+        Dbg::blockingInfo( "state: %d", slider._currentState );
 
         powerInterface.run();
         if ( connectorStatus.run() )
