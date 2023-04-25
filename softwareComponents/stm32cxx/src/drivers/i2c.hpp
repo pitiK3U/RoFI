@@ -14,6 +14,16 @@
 
 #include <i2c.port.hpp>
 
+namespace {
+    #include <concepts>
+
+    template < typename container >
+    concept RandomAccess = requires( container cont, uint32_t index ) {
+        // TODO: is the return type correct?? what about data loss, i.e. uint32_t -> uint8_t
+        { cont[index] } -> std::common_with< uint8_t >;
+    };
+}
+
 struct I2CPin : public Gpio::Pin
 {
     I2CPin( Gpio::Pin&& pin ) : Gpio::Pin( pin ) {}
@@ -60,6 +70,33 @@ struct SclPin : public I2CPin, public detail::SclPin< SclPin >
 
 // TODO: transaction address 7bit vs 10bit
 struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
+    /// @brief Since this error is used in C library it is defined as enum not enum class
+    enum Error : int8_t {
+        /// This goes in hand with `VL53L1X_ERROR`.
+        Valid = 0,
+        // VL53L1X lib error = 1
+        NotAcknowledge = 2,
+        BusError = 3,
+        ArbitrationLoss,
+        OverrunUnderrun,
+        BufferOverflow,
+    };
+
+    using error_type = Error;
+
+    static std::string_view errorMessage( error_type error )
+    {
+        using namespace std::literals::string_view_literals;
+        switch (error) {
+        case NotAcknowledge:  return "Not acknowledged"sv;
+        case BusError:        return "Bus error"sv;
+        case ArbitrationLoss: return "Arbitration loss"sv;
+        case OverrunUnderrun: return "Overrun/Underrun"sv;
+        case BufferOverflow:  return "Buffer overflow"sv;
+        default:              return "Unkown error"sv;
+        }
+    }
+
     I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
         : Peripheral< I2C_TypeDef >( i2c )
     {
@@ -91,73 +128,99 @@ struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
     }
 
     template < std::ranges::contiguous_range container >
-    int write( const uint32_t peripheralAddress, const container& buffer ) {
+    error_type write( const uint32_t peripheralAddress, const container& buffer ) {
         return _write( peripheralAddress, buffer.data(), buffer.size() );
     }
 
+    /**
+     * \brief Unsafe variant mostly for `vl53l1` i2c.
+    */
+    template < ::RandomAccess data_type >
+    error_type unsafe_write( const uint32_t periheralAddress, const data_type & data, const uint32_t transferSize ) {
+        return _write( periheralAddress, data, transferSize );
+    }
+
     template < std::ranges::contiguous_range container >
-    int read( const uint32_t peripheralAddress, container& buffer ) {
+    error_type read( const uint32_t peripheralAddress, container& buffer ) {
         return _read( peripheralAddress, buffer.data(), buffer.size() );
+    }
+
+    /**
+     * \brief Unsafe variant mostly for `vl53l1` i2c.
+    */
+    error_type unsafe_read( const uint32_t peripheralAddress, uint8_t* data, const uint32_t transferSize ) {
+        return _read( peripheralAddress, data, transferSize );
     }
 
 private:
     /**
-     * Checks whether an error occured on the i2c peripheral.
+     * Checks whether an error occurred on the i2c peripheral.
      * 
      * NOTE: This function clears given error flag after checking it.
     */
-    int checkError() {
+    error_type checkError() {
         if ( LL_I2C_IsActiveFlag_NACK( _periph ) ) {
             LL_I2C_ClearFlag_NACK( _periph );
-            return 1;
+            return NotAcknowledge;
         }
 
         if ( LL_I2C_IsActiveFlag_BERR( _periph ) ) {
             LL_I2C_ClearFlag_BERR( _periph );
-            return 2;
+            return BusError;
         }
 
          if ( LL_I2C_IsActiveFlag_ARLO( _periph ) ) {
             LL_I2C_ClearFlag_ARLO( _periph );
-            return 3;
+            return ArbitrationLoss;
         }
 
         if ( LL_I2C_IsActiveFlag_OVR( _periph ) ) {
             LL_I2C_ClearFlag_OVR( _periph );
-            return 4;
+            return OverrunUnderrun;
         }
 
-        return 0;
+        return Valid;
     }
 
-    int _write( const uint32_t peripheralAddress, const uint8_t* data, const uint32_t transferSize ) {
+    template < ::RandomAccess data_type >
+    error_type _write( const uint32_t peripheralAddress, const data_type data, const uint32_t transferSize ) {
+        // const data_type start = data; 
         LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
 
+        uint32_t index = 0;
         while( !LL_I2C_IsActiveFlag_STOP( _periph ) ) {
             if ( LL_I2C_IsActiveFlag_TXIS( _periph ) ) {
-                LL_I2C_TransmitData8( _periph, *(data++) );
+                if ( index >= transferSize ) {
+                    // TODO: should never happen??
+                    return BufferOverflow;
+                }
+                LL_I2C_TransmitData8( _periph, data[index] );
+                ++index;
             }
         }
 
-        int error = checkError();
+        error_type error = checkError();
 
         LL_I2C_ClearFlag_STOP( _periph );
         
         return error;
     }
 
-    int _read( const uint32_t peripheralAddress, uint8_t* buffer, const uint32_t transferSize ) {
+    error_type _read( const uint32_t peripheralAddress, uint8_t* buffer, const uint32_t transferSize ) {
         LL_I2C_HandleTransfer( _periph, peripheralAddress, LL_I2C_ADDRSLAVE_7BIT, transferSize, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
 
         uint8_t i = 0;
         while( !LL_I2C_IsActiveFlag_STOP( _periph ) ) {
             if ( LL_I2C_IsActiveFlag_RXNE( _periph ) ) {
+                if( i >= transferSize ) {
+                    return BufferOverflow;
+                }
                 buffer[i] = LL_I2C_ReceiveData8( _periph );
                 ++i;
             }
         }
 
-        int error = checkError();
+        error_type error = checkError();
 
         LL_I2C_ClearFlag_STOP( _periph );
 

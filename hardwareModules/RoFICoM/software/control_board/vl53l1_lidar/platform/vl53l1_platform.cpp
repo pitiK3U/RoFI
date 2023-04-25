@@ -92,9 +92,13 @@ inline static int8_t _WriteMulti( uint16_t slaveAddress, uint16_t registerAddres
 	return pI2c->write( slaveAddress, buffer );
 }
 
+inline static int8_t _WriteRegisterAddress( uint16_t slaveAddress, uint16_t registerAddress ) {
+	return _WriteMulti< 0 >( slaveAddress, registerAddress, nullptr );
+}
+
 template< std::size_t N >
 inline static int8_t _ReadMulti( uint16_t slaveAddress, uint16_t registerAddress, uint8_t *transmitBuffer ) {
-	VL53L1X_ERROR status = _WriteMulti< 0 >( slaveAddress, registerAddress, nullptr );
+	VL53L1X_ERROR status = _WriteRegisterAddress( slaveAddress, registerAddress );
 	if ( status != 0 ) {
 		return status;
 	}
@@ -106,77 +110,51 @@ inline static int8_t _ReadMulti( uint16_t slaveAddress, uint16_t registerAddress
 	return pI2c->read( slaveAddress, span );
 }
 
+// TODO: this is not used by the current ULD but declared in the interface
 int8_t VL53L1_WriteMulti( uint16_t slaveAddress, uint16_t registerAddress, uint8_t *transmitBuffer, uint32_t bufferSize) {
+	/**
+	 * This is a workaround for sending the address bytes as first 2 (without compile time size knowledge)
+	 * with using already specified functionality of i2c.
+	 * 
+	 * NOTE: this function is effective when the `bufferSize >= 8` 
+	 */
+	struct bufferWithAddress {
+		uint8_t *transmitBuffer;
+		uint32_t bufferSize;
+		std::array< uint8_t, 2 > address;
 
-	// NOTE: register address must be sent with data in one transaction 
-	const uint8_t address[2] = {
-		static_cast<uint8_t>( registerAddress >> 8 ),
-		static_cast<uint8_t>( registerAddress & 0xFF )
+		uint8_t operator[]( size_t index ) const {
+			return index < address.size() ? address[ index ] : transmitBuffer[ index - address.size() ];
+		}
+
+		size_t size() const {
+			return address.size() + bufferSize;
+		}
 	};
 
-	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, bufferSize + sizeof( address ), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
-
-    uint32_t i = 0;
-
-    while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
-        if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
-			assert( i - 2 < bufferSize );
-			uint8_t data = i < 2 ? address[i] : transmitBuffer[i-2];
-            LL_I2C_TransmitData8( I2C2, data );
-        	++i;
-        }
-    }
-
-    LL_I2C_ClearFlag_STOP( I2C2 );
-
-	return 0;
-}
-
-/**
- * BUG: This is only usefull for `VL53L1_ReadMulti` since this is handled with autoend.
-*/
-static int8_t _I2C_RegisterAdress( uint16_t slaveAddress, const uint16_t RegisterAddress ) {
-	const uint8_t address[2] = {
-		static_cast<uint8_t>( RegisterAddress >> 8 ),
-		static_cast<uint8_t>( RegisterAddress & 0xFF )
+	const bufferWithAddress buffer = {
+		transmitBuffer,
+		bufferSize,
+		{
+			static_cast<uint8_t>( registerAddress >> 8 ),
+			static_cast<uint8_t>( registerAddress & 0xFF ) 
+		},
 	};
 
-	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, sizeof(address), LL_I2C_MODE_AUTOEND, LL_I2C_GENERATE_START_WRITE );
+	assert( pI2c );
 
-    uint8_t i = 0;
-
-    while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
-        if ( LL_I2C_IsActiveFlag_TXIS( I2C2 ) ) {
-			assert( i < sizeof(address) );
-            LL_I2C_TransmitData8( I2C2, address[i] );
-        	++i;
-        }
-    }
-
-    LL_I2C_ClearFlag_STOP( I2C2 );
-
-	return 0;
+	return pI2c->unsafe_write( slaveAddress, buffer, buffer.size() );
 }
 
-int8_t VL53L1_ReadMulti(uint16_t slaveAddress, uint16_t registerAddress, uint8_t *transmitBuffer, uint32_t bufferSize){
-	int8_t status = _I2C_RegisterAdress( slaveAddress, registerAddress );
-	if (status != 0) return status;
-	
-	// Actual read
-	LL_I2C_HandleTransfer( I2C2, slaveAddress, LL_I2C_ADDRSLAVE_7BIT, bufferSize, LL_I2C_MODE_AUTOEND, I2C_GENERATE_START_READ );
+int8_t VL53L1_ReadMulti(uint16_t slaveAddress, uint16_t registerAddress, uint8_t *transmitBuffer, uint32_t bufferSize) {
+	VL53L1X_ERROR status = _WriteRegisterAddress( slaveAddress, registerAddress );
+	if ( status != 0 ) {
+		return status;
+	}
 
-    uint32_t i = 0;
-    while( !LL_I2C_IsActiveFlag_STOP( I2C2 ) ) {
-        if ( LL_I2C_IsActiveFlag_RXNE( I2C2 ) ) {
-			assert( i < bufferSize );
-            transmitBuffer[i] = LL_I2C_ReceiveData8( I2C2 );
-			++i;
-        }
-    }
+	assert( pI2c);
 
-    LL_I2C_ClearFlag_STOP( I2C2 );
-
-	return 0;
+	return pI2c->unsafe_read( slaveAddress, transmitBuffer, bufferSize );
 }
 
 int8_t VL53L1_WrByte(uint16_t dev, uint16_t registerAddress, uint8_t data) {

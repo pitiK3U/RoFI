@@ -69,7 +69,7 @@ struct Lidar {
         if ( _deviceAddress != _defaultAddress ) {
             status = VL53L1X_SetI2CAddress( _defaultAddress, _deviceAddress );
             if ( status != VL53L1X_ERROR_NONE ) {
-                return result_type::error( errorToString( status ) );
+                return result_type::error( errorMessage( status ) );
             }
         }
 
@@ -80,7 +80,7 @@ struct Lidar {
 
         status = VL53L1X_SensorInit( _deviceAddress );
         if (status != VL53L1X_ERROR_NONE) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -90,7 +90,7 @@ struct Lidar {
     {
         VL53L1X_ERROR status = VL53L1X_StartRanging( _deviceAddress );
         if (status != VL53L1X_ERROR_NONE) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -100,12 +100,12 @@ struct Lidar {
     {
         VL53L1X_ERROR status = VL53L1X_ClearInterrupt( _deviceAddress );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         status = VL53L1X_StopRanging( _deviceAddress );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -116,7 +116,7 @@ struct Lidar {
     {
         VL53L1X_ERROR status = VL53L1_WaitMeasurementDataReady( &_device );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -128,7 +128,7 @@ struct Lidar {
         uint8_t ready;
         VL53L1X_ERROR status = VL53L1X_CheckForDataReady( _deviceAddress, &ready );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return Result< bool, error_type >::error( errorToString( status ) );
+            return Result< bool, error_type >::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< bool >( bool(ready) );
@@ -138,7 +138,7 @@ struct Lidar {
     {
         VL53L1X_ERROR status = VL53L1X_ClearInterrupt( _deviceAddress );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return result_type::error( errorToString( status ) );
+            return result_type::error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -150,7 +150,7 @@ struct Lidar {
 
         VL53L1X_ERROR status = VL53L1X_GetResult( _deviceAddress, &rangingMeasurementData );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         if ( _isAutonomousMode ) {
@@ -182,7 +182,7 @@ struct Lidar {
     {
         VL53L1X_ERROR status = VL53L1X_SetTimingBudgetInMs( _deviceAddress, timingBudget );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -193,7 +193,7 @@ struct Lidar {
         uint16_t timingBudget = 0;
         VL53L1X_ERROR status = VL53L1X_GetTimingBudgetInMs( _deviceAddress, &timingBudget );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         return atoms::result_value( timingBudget );
@@ -211,7 +211,7 @@ struct Lidar {
 
         VL53L1X_ERROR status = VL53L1X_SetInterMeasurementInMs( _deviceAddress, interMeasurement );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         return atoms::make_result_value< Void >();
@@ -222,7 +222,7 @@ struct Lidar {
         uint16_t interMeasurement = 0;
         VL53L1X_ERROR status = VL53L1X_GetInterMeasurementInMs( _deviceAddress, &interMeasurement );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         return atoms::result_value( interMeasurement );
@@ -251,10 +251,10 @@ private:
 
         VL53L1X_ERROR status = VL53L1X_SetDistanceMode( _deviceAddress, mode );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
-        return atoms::result_error( errorToString( status ) );
+        return atoms::result_error( errorMessage( status ) );
     }
 
     Result< DistanceMode, error_type > _getDistanceMode()
@@ -262,7 +262,7 @@ private:
         uint16_t distanceMode;
         VL53L1X_ERROR status = VL53L1X_GetDistanceMode( _deviceAddress,  &distanceMode );
         if ( status != VL53L1X_ERROR_NONE ) {
-            return atoms::result_error( errorToString( status ) );
+            return atoms::result_error( errorMessage( status ) );
         }
 
         return atoms::result_value( static_cast< DistanceMode >( distanceMode ) );
@@ -316,7 +316,15 @@ private:
         }
     }
 
-    error_type errorToString( VL53L1X_ERROR err );
+    error_type errorMessage( VL53L1X_ERROR lidarError )
+    {
+        // This is possible due to the lidar driver (specifically Ultra Lite Driver)
+        // not having defined its own errors, only defined value is `0` which is *no error*.
+        // IMPLEMENTATION DETAIL: 
+        //   The ULD uses only value `1` as its own error.
+        const auto error = static_cast< I2C::Error >( lidarError );
+        return I2C::errorMessage( error );
+    };
 
     I2C* _i2c;
     Gpio::Pin _lidarEnable;

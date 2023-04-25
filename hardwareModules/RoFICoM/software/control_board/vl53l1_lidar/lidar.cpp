@@ -5,14 +5,14 @@
 // #include <vl53l1_api.h>
 // #undef VL53L1_USE_EMPTY_STRING
 // #include <vl53l1_error_strings.h>
-
+       /*
 std::string_view Lidar::errorToString( VL53L1X_ERROR err )
     {
         static char buffer[32] = {};
         std::snprintf(buffer, 32, "%d", err);
         return std::string_view( buffer );
         // Stolen from `core/src/vl53l1_error_strings.c:102`
-        /*
+ 
         switch ( err )
         {
         case VL53L1_ERROR_NONE:
@@ -163,5 +163,5 @@ std::string_view Lidar::errorToString( VL53L1X_ERROR err )
         default:
             return std::string_view(VL53L1_STRING_UNKNOW_ERROR_CODE);
         }
-        */
     }
+    */
