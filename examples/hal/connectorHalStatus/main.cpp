@@ -22,11 +22,9 @@ extern "C" void app_main() {
         std::cout << "Program starts\n";
         auto localRoFI = rofi::hal::RoFI::getLocalRoFI();
         std::cout << "Got local RoFI\n";
-        auto conn = localRoFI.getConnector( 1 );
+        auto conn = localRoFI.getConnector( 0 );
 
         while( true ) {
-            // std::cout << "Get state\n";
-            conn.connect();
             const auto state = conn.getState();
             std::cout << "Voltage: " << state.internalVoltage << "\n";
             std::cout << "Lidar status: " << getstatus(state.lidarStatus) << " measured distance: " << state.distance << " mm\n";

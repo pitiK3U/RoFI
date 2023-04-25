@@ -235,7 +235,7 @@ public:
                 "ConectorBusTask",
                 4096,   // Stack size
                 this,   // Argument
-                3,      // Priority
+                tskIDLE_PRIORITY, // Priority
                 nullptr // The task is never accessed again
             );
         if ( tRet != pdPASS )
@@ -338,6 +338,23 @@ public:
         : _bus( bus ), _cs( cs ), _receiveCmdCounter( 0 ), _interruptCounter( 0 )
     {
         _setupCs();
+
+        auto tRet = xTaskCreate([]( void *arg ) {
+                    ConnectorLocal& self = *reinterpret_cast< ConnectorLocal * >( arg );
+
+                    while (true) {
+                        self._issueStatusCmd( 0, 0 );
+                        vTaskDelay( 300 / portTICK_PERIOD_MS );
+                    }
+                },
+                "StatusPoller",
+                4096,   // Stack size
+                this,   // Argument
+                tskIDLE_PRIORITY, // Priority
+                nullptr // The task is never accessed again
+            );
+        if ( tRet != pdPASS )
+            abort();
     }
 private:
     static rofi::esp32::Gpio defaultCsConfig( gpio_num_t c ) {
