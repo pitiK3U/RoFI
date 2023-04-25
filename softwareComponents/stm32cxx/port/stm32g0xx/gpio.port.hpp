@@ -27,6 +27,10 @@ public:
             LL_IOP_GRP1_EnableClock( LL_IOP_GRP1_PERIPH_GPIOB );
         else if ( self()._periph == GPIOC )
             LL_IOP_GRP1_EnableClock( LL_IOP_GRP1_PERIPH_GPIOC );
+        else if ( self()._periph == GPIOD )
+            LL_IOP_GRP1_EnableClock( LL_IOP_GRP1_PERIPH_GPIOD );
+        else
+            assert( false && "Gpio enableclock not implemented" );
     }
 
     void disableClock() {
@@ -36,6 +40,10 @@ public:
             LL_IOP_GRP1_DisableClock( LL_IOP_GRP1_PERIPH_GPIOB );
         else if ( self()._periph == GPIOC )
             LL_IOP_GRP1_DisableClock( LL_IOP_GRP1_PERIPH_GPIOC );
+        else if ( self()._periph == GPIOD )
+            LL_IOP_GRP1_DisableClock( LL_IOP_GRP1_PERIPH_GPIOD );
+        else
+            assert( false && "Gpio disableclock not implemented" );
     }
 
     static IRQn_Type _positionToInterrupt( int pos ) {
