@@ -218,12 +218,12 @@ int main() {
     // }
     // assert( false );
 
-    // lidarInit( lidar, currentLidarMeasurement );
+    lidarInit( lidar, currentLidarMeasurement );
 
     ConnComInterface connComInterface( std::move( bsp::uart ).value() );
 
     using Command = SpiInterface::Command;
-    SpiInterface spiInterface( std::move( bsp::spi ).value(), GpioA[ 4 ],
+    SpiInterface spiInterface( std::move( bsp::spi ).value(), bsp::spiCSPin,
         [&]( Command cmd, Block b ) {
             switch( cmd ) {
             case Command::VERSION:
@@ -277,8 +277,7 @@ int main() {
         }
 
         slider.run();
-        // Dbg::blockingInfo( "%d", slider._position() );
-        // Dbg::blockingInfo( "state: %d", slider._currentState );
+        // Dbg::blockingInfo( "pos: %d,\tgoal: %d\tstate: %d", slider._position(), slider._goal, slider._currentState );
 
         connComInterface.run();
 
@@ -289,9 +288,10 @@ int main() {
                 const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
                 Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
                     rangingMeasurementData.Status,
-                    rangingMeasurementData.Distance );
+                    rangingMeasurementData.Distance,
+                    rangingMeasurementData.Ambient );
             } else {
-                Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
+                Dbg::error( "Error while measuring: %s\n", currentLidarMeasurement.value().assume_error() );
             }
         } else {
             Dbg::blockingInfo( "Data not yet measured\n" );

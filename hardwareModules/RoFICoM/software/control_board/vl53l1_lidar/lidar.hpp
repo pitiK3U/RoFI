@@ -342,9 +342,6 @@ private:
     I2C* _i2c;
     Gpio::Pin _lidarEnable;
     std::optional< Gpio::Pin > _interruptPin;
-    // waitUsFn _waitUs;
-
-    // VL53L1_Dev_t _device;
 
     address_type _deviceAddress;
     uint32_t _communicationSpeed;

@@ -93,7 +93,7 @@ public:
                 _set( State::Retracting );
         }
         else if ( _goal == State::Expanded ) {
-            if ( ( pos + _endThreshold >= _expandedPosition ) || pos == 0 )
+            if ( ( pos + _endThreshold >= _expandedPosition ) )
                 _set( State::Expanded );
             else
                 _set( State::Expanding );
@@ -108,7 +108,7 @@ public:
             _motor.set( _coef( pos ) * -MAX_POWER );
         else if ( _currentState == State::Retracting )
             _motor.set( _coef( pos ) * MAX_POWER );
-        else // if ( _currentState == State::Expanded || _currentState == State::Retracted ) 
+        else
             _motor.set( 0 );
     }
 
@@ -132,6 +132,7 @@ public:
     }
 
     void _onStateChange() {
+        // REMOVE:
     }
 
     float _coef( int position ) {
@@ -141,8 +142,8 @@ public:
             return 0;
         } else if ( positionFromGoal <= threshold ) {
             const float min_coef = 0.5f;
-            float coef = float(positionFromGoal) / 100;
-            return coef;
+            float coef = float(positionFromGoal) / 100 + 0.5f;
+            return std::max(coef, min_coef);
         }
         return 1;
     }
