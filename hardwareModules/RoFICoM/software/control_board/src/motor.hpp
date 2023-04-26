@@ -81,7 +81,7 @@ public:
         _goal = State::Unknown;
         _currentState = State::Unknown;
         _onStateChange();
-        // _move();
+        _move();
     }
 
     void run() {
@@ -93,7 +93,7 @@ public:
                 _set( State::Retracting );
         }
         else if ( _goal == State::Expanded ) {
-            if ( pos + _endThreshold >= _expandedPosition )
+            if ( ( pos + _endThreshold >= _expandedPosition ) || pos == 0 )
                 _set( State::Expanded );
             else
                 _set( State::Expanding );
@@ -102,7 +102,7 @@ public:
     }
 // TODO: private:
     void _move() {
-        const int MAX_POWER = 50;
+        const int MAX_POWER = 40;
         const int pos = _position();
         if ( _currentState == State::Expanding )
             _motor.set( _coef( pos ) * -MAX_POWER );
@@ -118,9 +118,11 @@ public:
         _currentState = s;
         switch (_goal)
         {
+        case State::Retracting:
         case State::Retracted:
             _goalPosition = _retractedPosition;
             break;
+        case State::Expanding:
         case State::Expanded:
             _goalPosition = _expandedPosition;
             break;
@@ -135,12 +137,12 @@ public:
     float _coef( int position ) {
         const int threshold = 30;
         const int positionFromGoal = std::abs( position - _goalPosition );
-        if (positionFromGoal <= _endThreshold ) {
+        if ( positionFromGoal <= _endThreshold ) {
             return 0;
         } else if ( positionFromGoal <= threshold ) {
             const float min_coef = 0.5f;
-            float coef = float(positionFromGoal) / 100 + 0.5f;
-            return std::max(coef, min_coef);
+            float coef = float(positionFromGoal) / 100;
+            return coef;
         }
         return 1;
     }
@@ -155,11 +157,11 @@ public:
             }
             ++i;
         }
-        return 100 * readPosSum / ( readCount != 0 ? readCount : 1 )  / ( _positionPins.size() - 1 );
+        return ( 100 * readPosSum / ( readCount != 0 ? readCount : 1 ) )  / ( _positionPins.size() - 1 );
     }
 
     Motor _motor;
-    const std::array< Gpio::Pin, 10 > /*decltype( bsp::posPins )*/ & _positionPins;
+    const std::array< Gpio::Pin, 10 > /* Error with cycle referencing?: decltype( bsp::posPins )*/ & _positionPins;
     State _goal;
     State _currentState;
     uint8_t _goalPosition;
