@@ -13,7 +13,7 @@
 #include <stm32g0xx_ll_i2c.h>
 
 namespace {
-    // TODO <stm32cxx/drivers/clock.hpp>
+    // TODO ? <stm32cxx/drivers/clock.hpp>
     void setupSystemClock() {
         LL_FLASH_SetLatency( LL_FLASH_LATENCY_2 );
         LL_RCC_HSI_Enable();
@@ -79,7 +79,6 @@ namespace bsp {
     std::optional< Uart > uart;
 
     std::optional< I2C > i2c;
-    // std::optional< Timer > microTimer;
 
     void setupBoard() {
         setupSystemClock();
@@ -110,7 +109,6 @@ namespace bsp {
         uart->enable();
 
         i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ) );
-        // microTimer = Timer( TIM2, FreqAndRes( cfg::MICROSECOND_FREQUENCY, UINT16_MAX ) );
     }
 
 

@@ -64,8 +64,6 @@
 
 // Anonymous namespace is to hide symbols only into this compilation unit.
 namespace {
-// static Gpio::Pin INTPIN = Gpio( GPIOB )[ 0 ];
-// Lidar::waitUsFn waitUs;
 I2C* pI2c = nullptr;
 }
 

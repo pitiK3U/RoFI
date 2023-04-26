@@ -35,3 +35,4 @@ target_link_libraries(roficomFw
         g0_stm32cxx_system g0_stm32cxx_uart g0_stm32cxx_spi g0_stm32cxx_gpio
         g0_stm32cxx_dma g0_stm32cxx_adc g0_stm32cxx_timer g0_stm32cxx_i2c
         lidar atoms)
+target_compile_definitions(roficomFw PUBLIC GPIOD_BASE)
