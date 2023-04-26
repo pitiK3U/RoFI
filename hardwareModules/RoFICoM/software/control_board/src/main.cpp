@@ -136,20 +136,23 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& );
 void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
     auto result = lidar.initialize().and_then( [&] ( auto ) {
             Dbg::blockingInfo("start measuring\n");
+            lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
             return lidar.startMeasurement();
     });
 
     if ( !result ) {
-        // *currentLidarMeasurement = result;
+        *currentLidarMeasurement = atoms::result_error( result.assume_error() );
         Dbg::error( "\n Error init:" );
         Dbg::error( result.assume_error().data() );
         IdleTask::defer( [&]( ) { lidarInit( lidar, currentLidarMeasurement ); } );
     } else {
-        IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+        // REMOVE: *without interrupt*: 
+        // IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 }
 
 void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
+    Dbg::blockingInfo( "lidarGet called" );
     using Data = LidarResult::value_type;
 
     auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) -> atoms::Result< std::optional< Data >, std::string_view >  {
@@ -173,12 +176,15 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         IdleTask::defer( [&]( ) { lidarInit( lidar, currentLidarMeasurement ); } );
     } else {
         std::optional< Data > data = result.assume_value();
-        if ( !data ) {
-            // currentLidarMeasurement = std::nullopt;
-        } else {
+        if ( data ) {
             currentLidarMeasurement = LidarResult::value( data.value() );
+        } else {
+            // This is not an error in ranging because the data could be received before
+            // and is currently measuring.
+            // currentLidarMeasurement = std::nullopt;
         }
-        IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+        // REMOVE: *without interrupt*
+        // IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 
 }
@@ -197,14 +203,11 @@ int main() {
     PowerSwitch powerInterface;
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
  
-    // TODO: use IdleTask::defer for hotplug lidar
-    // TODO: solve ownership of peripherals when initializing lidar
-    // constexpr auto wait = [] ( uint32_t wait ) { bsp::microTimer->blockingWait( wait ); };
-
-    Lidar lidar( &*bsp::i2c, bsp::lidarEnablePin );
+    Lidar lidar( &*bsp::i2c, bsp::lidarEnablePin, bsp::lidarIRQPin );
 
     std::optional< LidarResult > currentLidarMeasurement;
  
+    // REMOVE:
     // while (true) {
     //     auto id = lidar.getSensorId();
     //     if ( id.has_value() ) {
@@ -214,9 +217,6 @@ int main() {
     //     }
     // }
     // assert( false );
-
-    // auto init = lidar.initialize();
-    // assert( init );
 
     // lidarInit( lidar, currentLidarMeasurement );
 
@@ -250,20 +250,7 @@ int main() {
     Dbg::blockingInfo( "Ready for operation" );
 
     while ( true ) {
-        auto readCount = 0;
-        auto readPosSum = 0;
-        for ( auto i = 0; auto posPin : bsp::posPins ) {
-            if ( ! posPin.read() ) {
-                ++readCount;
-                readPosSum += i;
-            }
-            ++i;
-        }
-        Dbg::blockingInfo( "position: %d", 100 * readPosSum / ( readCount != 0 ? readCount : 1 )  / ( bsp::posPins.size() - 1 ) );
-        // Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
-
-        slider.run();
-        Dbg::blockingInfo( "state: %d", slider._currentState );
+        // TODO: Dbg::blockingInfo( "Raw: %d,\t\tVoltage: %f", read, ( (float)read * 6.8f * 3.3f ) / ( 4096 * ( 100.0f + 6.8f ) ) );
 
         powerInterface.run();
         if ( connectorStatus.run() )
@@ -288,25 +275,27 @@ int main() {
                 Dbg::error( "DBG received: %c, %d", chr, int( chr ) );
             }
         }
-        // Dbg::error("%d, %d", GpioB[ 4 ].read(), GpioB[ 8 ].read());
-        // connComInterface.run();
+
+        slider.run();
+        // Dbg::blockingInfo( "%d", slider._position() );
+        // Dbg::blockingInfo( "state: %d", slider._currentState );
+
+        connComInterface.run();
 
         IdleTask::run();
         // REMOVE:
-        // if ( currentLidarMeasurement.has_value() ) {
-        //     if ( currentLidarMeasurement.value().has_value() ){
-        //         const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
-        //         Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
-        //             rangingMeasurementData.Status,
-        //             rangingMeasurementData.Distance );
-        //     } else {
-        //         Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
-        //     }
-        // } else {
-        //     Dbg::blockingInfo( "Data not yet measured\n" );
-        // }
-
-
+        if ( currentLidarMeasurement.has_value() ) {
+            if ( currentLidarMeasurement.value().has_value() ){
+                const auto rangingMeasurementData = currentLidarMeasurement.value().assume_value();
+                Dbg::blockingInfo( "Range status: %hhu, Range: %hu mm, Ambient: %hu\n",
+                    rangingMeasurementData.Status,
+                    rangingMeasurementData.Distance );
+            } else {
+                Dbg::error( "Error while measurement: %s\n", currentLidarMeasurement.value().assume_error() );
+            }
+        } else {
+            Dbg::blockingInfo( "Data not yet measured\n" );
+        }
     }
 }
 

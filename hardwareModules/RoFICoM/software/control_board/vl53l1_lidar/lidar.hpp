@@ -1,24 +1,25 @@
 #pragma once
 
+// REMOVE: its it currently to enable assert in release
 #undef NDEBUG
 #include <cassert>
 #include <cstdint>
 #include <string_view>
+#include <optional>
 
 #include <atoms/result.hpp>
+
+#include <system/idle.hpp>
 
 #include <drivers/timer.hpp>
 #include <drivers/i2c.hpp>
 
 #include <VL53L1X_api.h>
 #include <vl53l1_platform.h>
-// #include <vl53l1_platform_init.h>
 
 // namespace that's used to propagate needed peripherals/functions
 // to library's `vl53l1_plaftorm.cpp`
 namespace _inner {
-    // using waitUsFn = void (*)(uint32_t);
-
     void initialize_platform( I2C* );
 }
 
@@ -30,7 +31,6 @@ struct Lidar {
 
     using error_type = std::string_view;
     using result_type = Result< Void,  error_type >;
-    // using waitUsFn = _inner::waitUsFn;
 
     using address_type = uint16_t;
     using data_type = VL53L1X_Result_t;
@@ -43,9 +43,16 @@ struct Lidar {
         Long       = 2,
     };
 
-    Lidar( I2C* i2c, const Gpio::Pin lidarEnable, const address_type deviceAddress = 0x52, const uint32_t commSpeed = 400 )
+    Lidar(
+            I2C* i2c,
+            const Gpio::Pin lidarEnable,
+            std::optional< const Gpio::Pin > interruptPin = std::nullopt,
+            const address_type deviceAddress = 0x52,
+            const uint32_t commSpeed = 400
+        )
         : _i2c( i2c )
         , _lidarEnable( lidarEnable )
+        , _interruptPin( interruptPin )
         , _deviceAddress( deviceAddress )
         , _communicationSpeed( commSpeed )
     {
@@ -53,10 +60,7 @@ struct Lidar {
         assert( commSpeed <= 400 );
     }
 
-    ~Lidar()
-    {
-        // VL53L1_platform_terminate( &_device );
-    }
+    ~Lidar() { }
 
     result_type initialize()
     {
@@ -243,6 +247,15 @@ struct Lidar {
         return atoms::result_value< uint16_t >( id );
     }
 
+    template < typename Callback >
+    void setupInterrupt( Callback callback )
+    {
+        assert( _interruptPin );
+        
+        _interruptPin->setupInput( true, true );
+        _interruptPin->setupInterrupt( LL_EXTI_TRIGGER_FALLING, [&]( auto ){ IdleTask::defer( callback ); } );
+    }
+
 private:
     result_type _setDistanceMode( uint16_t mode )
     {
@@ -328,6 +341,7 @@ private:
 
     I2C* _i2c;
     Gpio::Pin _lidarEnable;
+    std::optional< Gpio::Pin > _interruptPin;
     // waitUsFn _waitUs;
 
     // VL53L1_Dev_t _device;
