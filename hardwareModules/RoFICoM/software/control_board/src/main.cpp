@@ -66,7 +66,8 @@ void onCmdVersion( SpiInterface& interf ) {
 }
 
 void onCmdStatus( SpiInterface& interf, Block header,
-    ConnComInterface& connInt, Slider& slider, std::optional< LidarResult >& lidarResult )
+    ConnComInterface& connInt, Slider& slider, PowerSwitch& powerInterface,
+    std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
     uint16_t mask = viewAs< uint16_t >( header.get() + 2 );
@@ -75,6 +76,12 @@ void onCmdStatus( SpiInterface& interf, Block header,
             slider.expand();
         else
             slider.retract();
+    }
+    if ( mask & ConnectorStateFlags::InternalConnected ) {
+        powerInterface.connectInternal( static_cast< bool >( status & ConnectorStateFlags::InternalConnected ) );
+    }
+    if ( mask & ConnectorStateFlags::ExternalConnected ) {
+        powerInterface.connectExternal( static_cast< bool >( status & ConnectorStateFlags::ExternalConnected ) );
     }
 
     uint8_t lidarStatus;
@@ -89,16 +96,21 @@ void onCmdStatus( SpiInterface& interf, Block header,
         lidarStatus = 0b01;
     }
 
-    auto block = memory::Pool::allocate( 14 );
-    memset( block.get(), 0xAA, 14 );
+    const auto blockSize = 14;
+    auto block = memory::Pool::allocate( blockSize );
+    memset( block.get(), 0xAA, blockSize );
+    // TODO: add missing first two bytes
     viewAs< uint8_t >( block.get() + 1 ) = lidarStatus << 3;
     viewAs< uint8_t >( block.get() + 2 ) = connInt.pending();
     viewAs< uint8_t >( block.get() + 3 ) = connInt.available();
-    viewAs< uint8_t >( block.get() + 4 ) = 42;
-    if ( !(lidarStatus & 0b10) )
+    viewAs< uint16_t >( block.get() + 4 ) = powerInterface.getIntVoltage();
+    viewAs< uint16_t >( block.get() + 6 ) = powerInterface.getIntCurrent();
+    viewAs< uint16_t >( block.get() + 8 ) = powerInterface.getExtVoltage();
+    viewAs< uint16_t >( block.get() + 10 ) = powerInterface.getExtCurrent();
+    if ( !( lidarStatus & 0b10 ) )
         viewAs< uint16_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
     // ToDo: Assign remaining values
-    interf.sendBlock( std::move( block ), 14 );
+    interf.sendBlock( std::move( block ), blockSize );
     // ToDo Interpret the header
 }
 
@@ -136,7 +148,7 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& );
 void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
     auto result = lidar.initialize().and_then( [&] ( auto ) {
             Dbg::blockingInfo("start measuring\n");
-            lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+            // lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
             return lidar.startMeasurement();
     });
 
@@ -147,7 +159,7 @@ void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurem
         IdleTask::defer( [&]( ) { lidarInit( lidar, currentLidarMeasurement ); } );
     } else {
         // REMOVE: *without interrupt*: 
-        // IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+        IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 }
 
@@ -184,7 +196,7 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
             // currentLidarMeasurement = std::nullopt;
         }
         // REMOVE: *without interrupt*
-        // IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+        IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 
 }
