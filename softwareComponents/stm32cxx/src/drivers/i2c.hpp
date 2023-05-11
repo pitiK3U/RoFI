@@ -38,7 +38,6 @@ struct I2CPin : public Gpio::Pin
         auto pin = 1 << _pos;
         LL_GPIO_SetPinMode( _periph, pin, LL_GPIO_MODE_ALTERNATE );
 
-        // TODO: create i2c.port.hpp file for setting up alternate function
         auto alternateFunction = alternativeFun( i2cPeriph );
         if ( pin <= 7 ) {
             LL_GPIO_SetAFPin_0_7( _periph, pin, alternateFunction );
@@ -108,7 +107,9 @@ struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
         LL_I2C_InitTypeDef I2C_InitStruct = { };
 
         I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
-        // TODO: set speed
+        // TODO: set speed - calculating the timing value from 
+        // seems as non-trivial calculation, since even stm32 provides
+        // an excel sheet to calculate it.
         // This parameter is computed by STM32cubemx tool
         I2C_InitStruct.Timing = 0x00303D5B;
         I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
