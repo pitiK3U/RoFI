@@ -66,7 +66,8 @@ void onCmdVersion( SpiInterface& interf ) {
 }
 
 void onCmdStatus( SpiInterface& interf, Block header,
-    ConnComInterface& connInt, Slider& slider, PowerSwitch& powerInterface,
+    ConnComInterface& connInt, ConnectorStatus connectorStatus,
+    Slider& slider, PowerSwitch& powerInterface,
     std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
@@ -100,7 +101,18 @@ void onCmdStatus( SpiInterface& interf, Block header,
     auto block = memory::Pool::allocate( blockSize );
     memset( block.get(), 0xAA, blockSize );
     // TODO: add missing first two bytes
-    viewAs< uint8_t >( block.get() + 1 ) = lidarStatus << 3;
+    uint16_t flags = 0;
+    // TODO: extended flag
+    flags |= powerInterface.getInternalConnection() << 1;
+    flags |= powerInterface.getExternalConnection() << 2;
+    flags |= lidarStatus << 11;
+
+    if ( connectorStatus.getOrientation() != ConnectorOrientation::Unknown ) {
+        flags |= ConnectorStateFlags::MatingSide;
+        flags |= connectorStatus.getOrientation() << 9;
+    }
+
+    viewAs< uint16_t >( block.get() ) = flags;
     viewAs< uint8_t >( block.get() + 2 ) = connInt.pending();
     viewAs< uint8_t >( block.get() + 3 ) = connInt.available();
     viewAs< uint16_t >( block.get() + 4 ) = powerInterface.getIntVoltage();
@@ -229,7 +241,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                onCmdStatus( spiInterface, std::move( b ), connComInterface, slider, powerInterface, currentLidarMeasurement );
+                onCmdStatus( spiInterface, std::move( b ), connComInterface, connectorStatus, slider, powerInterface, currentLidarMeasurement );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );
