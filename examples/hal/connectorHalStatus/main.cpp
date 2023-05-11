@@ -22,12 +22,20 @@ extern "C" void app_main() {
         std::cout << "Program starts\n";
         auto localRoFI = rofi::hal::RoFI::getLocalRoFI();
         std::cout << "Got local RoFI\n";
-        auto conn = localRoFI.getConnector( 0 );
+        auto conn = localRoFI.getConnector( 2 );
 
         while( true ) {
             const auto state = conn.getState();
-            std::cout << "Voltage: " << state.internalVoltage << "\n";
+            std::cout << "Is retracted: " << bool(state.position) << " int conn: " << state.internal << " ext conn: " << state.external << "\n";
+            std::cout << "Is connected: " << state.connected;
+            if ( state.connected ) {
+                std:: cout << " orientation: " << int(state.orientation);
+            }
+            std::cout << "\n";
+
+            std::cout << "Internal Voltage: " << state.internalVoltage << " External Voltage: " << state.externalVoltage << "\n";
             std::cout << "Lidar status: " << getstatus(state.lidarStatus) << " measured distance: " << state.distance << " mm\n";
+            std::cout << "\n";
             vTaskDelay( 1000 / portTICK_PERIOD_MS );
         }
 
