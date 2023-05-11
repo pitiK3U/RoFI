@@ -59,6 +59,7 @@
 
 #include <lidar.hpp>
 
+// REMOVE:
 #undef NDEBUG
 #include <cassert>
 
@@ -67,9 +68,8 @@ namespace {
 I2C* pI2c = nullptr;
 }
 
-void _inner::initialize_platform( I2C* i2cPeriph ) {
+void lidar_inner::initialize_platform( I2C* i2cPeriph ) {
 	pI2c = i2cPeriph;
-	// waitUs = _waitUs;
 }
 
 template< std::size_t N >

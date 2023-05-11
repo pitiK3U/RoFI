@@ -86,6 +86,10 @@ public:
 
     void run() {
         const auto pos = _position();
+        // TODO:
+        if ( pos == -1 ) {
+            return;
+        }
         if ( _goal == State::Retracted ) {
             if ( pos - _endThreshold <= _retractedPosition )
                 _set( State::Retracted );
@@ -102,7 +106,7 @@ public:
     }
 // TODO: private:
     void _move() {
-        const int MAX_POWER = 40;
+        const int MAX_POWER = 100;
         const int pos = _position();
         if ( _currentState == State::Expanding )
             _motor.set( _coef( pos ) * -MAX_POWER );
@@ -116,6 +120,10 @@ public:
         if ( s != _currentState )
             _onStateChange();
         _currentState = s;
+    }
+
+    void _onStateChange() {
+        // REMOVE:
         switch (_goal)
         {
         case State::Retracting:
@@ -131,19 +139,15 @@ public:
         }
     }
 
-    void _onStateChange() {
-        // REMOVE:
-    }
-
     float _coef( int position ) {
-        const int threshold = 30;
+        const int threshold = 50;
         const int positionFromGoal = std::abs( position - _goalPosition );
         if ( positionFromGoal <= _endThreshold ) {
             return 0;
         } else if ( positionFromGoal <= threshold ) {
             const float min_coef = 0.5f;
-            float coef = float(positionFromGoal) / 100 + 0.5f;
-            return std::max(coef, min_coef);
+            float coef = float(positionFromGoal) / 100 / 2; // + 0.25f;
+            return coef; // std::max(coef, min_coef);
         }
         return 1;
     }
@@ -158,7 +162,10 @@ public:
             }
             ++i;
         }
-        return ( 100 * readPosSum / ( readCount != 0 ? readCount : 1 ) )  / ( _positionPins.size() - 1 );
+        return 
+        readCount == 0
+        ? -1
+        : ( 100 * readPosSum / ( readCount ) )  / ( _positionPins.size() - 1 );
     }
 
     Motor _motor;
@@ -166,8 +173,8 @@ public:
     State _goal;
     State _currentState;
     uint8_t _goalPosition;
-    const uint8_t _retractedPosition = 0;
+    const uint8_t _retractedPosition = 25;
     const uint8_t _expandedPosition = 100;
-    const uint8_t _endThreshold = 15;
+    const uint8_t _endThreshold = 30;
 
 };

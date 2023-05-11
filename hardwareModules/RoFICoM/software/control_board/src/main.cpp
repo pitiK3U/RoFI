@@ -211,24 +211,12 @@ int main() {
     Adc1.setup();
     Adc1.enable();
 
+    std::optional< LidarResult > currentLidarMeasurement;
+
     Slider slider( std::move( bsp::motor ).value(), bsp::posPins );
     PowerSwitch powerInterface;
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
- 
     Lidar lidar( &*bsp::i2c, bsp::lidarEnablePin, bsp::lidarIRQPin );
-
-    std::optional< LidarResult > currentLidarMeasurement;
- 
-    // REMOVE:
-    // while (true) {
-    //     auto id = lidar.getSensorId();
-    //     if ( id.has_value() ) {
-    //         Dbg::blockingInfo("ID: %u", id.assume_value() );
-    //     } else {
-    //         Dbg::error("Err: %d", id.assume_error() );
-    //     }
-    // }
-    // assert( false );
 
     lidarInit( lidar, currentLidarMeasurement );
 
@@ -242,7 +230,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                onCmdStatus( spiInterface, std::move( b ), connComInterface, slider, currentLidarMeasurement );
+                onCmdStatus( spiInterface, std::move( b ), connComInterface, slider, powerInterface, currentLidarMeasurement );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );

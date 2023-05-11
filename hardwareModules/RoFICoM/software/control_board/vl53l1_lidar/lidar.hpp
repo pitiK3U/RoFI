@@ -19,7 +19,7 @@
 
 // namespace that's used to propagate needed peripherals/functions
 // to library's `vl53l1_plaftorm.cpp`
-namespace _inner {
+namespace lidar_inner {
     void initialize_platform( I2C* );
 }
 
@@ -66,7 +66,7 @@ struct Lidar {
     {
         _lidarEnable.setupPPOutput( );
         _lidarEnable.write( true );
-        _inner::initialize_platform( _i2c );
+        lidar_inner::initialize_platform( _i2c );
 
         VL53L1X_ERROR status;
 
@@ -236,7 +236,7 @@ struct Lidar {
     {
         _lidarEnable.setupODOutput( true, true );
         _lidarEnable.write( true );
-        _inner::initialize_platform( _i2c );
+        lidar_inner::initialize_platform( _i2c );
 
         uint16_t id = 0;
         VL53L1X_ERROR status = VL53L1X_GetSensorId( _deviceAddress, &id );
