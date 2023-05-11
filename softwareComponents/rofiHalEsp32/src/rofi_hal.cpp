@@ -235,7 +235,7 @@ public:
                 "ConectorBusTask",
                 4096,   // Stack size
                 this,   // Argument
-                tskIDLE_PRIORITY, // Priority
+                3,      // Priority
                 nullptr // The task is never accessed again
             );
         if ( tRet != pdPASS )
@@ -780,7 +780,7 @@ public:
                                     bsp::gammaRatio )
         } ),
     #endif
-        _connectorBus( HSPI_HOST, GPIO_NUM_19, GPIO_NUM_18, 10'000'000 ),
+        _connectorBus( HSPI_HOST, GPIO_NUM_19, GPIO_NUM_18, 50'000'000 ),
         _connectors( {
             std::make_shared< ConnectorLocal >( &_connectorBus, GPIO_NUM_27 ),
             std::make_shared< ConnectorLocal >( &_connectorBus, GPIO_NUM_25 ),
