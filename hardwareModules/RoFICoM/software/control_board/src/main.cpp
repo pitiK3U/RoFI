@@ -208,22 +208,21 @@ int main() {
 
     Dbg::blockingInfo( "Starting" );
 
-    Adc1.setup();
-    Adc1.enable();
-
     std::optional< LidarResult > currentLidarMeasurement;
 
-    Slider slider( std::move( bsp::motor ).value(), bsp::posPins );
-    PowerSwitch powerInterface;
+    Slider slider( std::move( bsp::sliderMotor ).value(), bsp::posPins );
+    PowerSwitch powerInterface(
+        bsp::internalSwitchPin, bsp::internalVoltagePin, bsp::internalCurrentPin,
+        bsp::externalSwitchPin, bsp::externalVoltagePin, bsp::externalCurrentPin );
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
     Lidar lidar( &*bsp::i2c, bsp::lidarEnablePin, bsp::lidarIRQPin );
 
     lidarInit( lidar, currentLidarMeasurement );
 
-    ConnComInterface connComInterface( std::move( bsp::uart ).value() );
+    ConnComInterface connComInterface( std::move( bsp::connectorComm ).value() );
 
     using Command = SpiInterface::Command;
-    SpiInterface spiInterface( std::move( bsp::spi ).value(), bsp::spiCSPin,
+    SpiInterface spiInterface( std::move( bsp::moduleComm ).value(), bsp::spiCSPin,
         [&]( Command cmd, Block b ) {
             switch( cmd ) {
             case Command::VERSION:

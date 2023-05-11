@@ -44,14 +44,12 @@ namespace bsp {
 
 
     extern std::optional< Timer > timer;
-    extern std::optional< Timer::Pwm > pwm;
-    extern std::optional< Motor > motor;
-    extern std::optional< Spi > spi;
-    extern std::optional< Uart > uart;
+    extern std::optional< Timer::Pwm > motorPwm;
+    extern std::optional< Motor > sliderMotor;
+    extern std::optional< Spi > moduleComm;
+    extern std::optional< Uart > connectorComm;
 
     extern std::optional< I2C > i2c;
-    // microsecond timer needed for lidar waiting
-    // extern std::optional< Timer > microTimer;
 
     /**
      * Function to setup your board, MUST be called before using 
