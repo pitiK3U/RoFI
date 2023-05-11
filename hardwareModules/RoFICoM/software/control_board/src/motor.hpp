@@ -104,6 +104,9 @@ public:
         }
         _move();
     }
+
+    State getGoal() { return _goal; }
+
 // TODO: private:
     void _move() {
         const int MAX_POWER = 100;
@@ -123,7 +126,6 @@ public:
     }
 
     void _onStateChange() {
-        // REMOVE:
         switch (_goal)
         {
         case State::Retracting:

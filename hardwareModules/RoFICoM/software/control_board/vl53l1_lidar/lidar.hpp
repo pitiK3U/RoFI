@@ -48,16 +48,15 @@ struct Lidar {
             const Gpio::Pin lidarEnable,
             std::optional< const Gpio::Pin > interruptPin = std::nullopt,
             const address_type deviceAddress = 0x52,
-            const uint32_t commSpeed = 400
+            const uint32_t communicationSpeed = 400
         )
         : _i2c( i2c )
         , _lidarEnable( lidarEnable )
         , _interruptPin( interruptPin )
         , _deviceAddress( deviceAddress )
-        , _communicationSpeed( commSpeed )
     {
         // As mentioned in datasheet VL53L1X has maximum speed of 400 kbits/s
-        assert( commSpeed <= 400 );
+        assert( communicationSpeed <= 400 );
     }
 
     ~Lidar() { }
@@ -256,6 +255,15 @@ struct Lidar {
         _interruptPin->setupInterrupt( LL_EXTI_TRIGGER_FALLING, [&]( auto ){ IdleTask::defer( callback ); } );
     }
 
+    result_type setInterruptPolarity( bool polarity ) {
+        VL53L1X_ERROR status = VL53L1X_SetInterruptPolarity( _deviceAddress, polarity );
+        if ( status != VL53L1X_ERROR_NONE ) {
+            return atoms::result_error( errorMessage( status ) );
+        }
+
+        return atoms::make_result_value< Void >();
+    }
+
 private:
     result_type _setDistanceMode( uint16_t mode )
     {
@@ -344,7 +352,6 @@ private:
     std::optional< Gpio::Pin > _interruptPin;
 
     address_type _deviceAddress;
-    uint32_t _communicationSpeed;
 
     bool _isAutonomousMode = true;
     

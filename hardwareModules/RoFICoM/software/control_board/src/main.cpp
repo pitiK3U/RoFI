@@ -103,6 +103,7 @@ void onCmdStatus( SpiInterface& interf, Block header,
     // TODO: add missing first two bytes
     uint16_t flags = 0;
     // TODO: extended flag
+    flags |= ( slider.getGoal() == Slider::State::Expanded ) << 0;
     flags |= powerInterface.getInternalConnection() << 1;
     flags |= powerInterface.getExternalConnection() << 2;
     flags |= lidarStatus << 11;
@@ -160,8 +161,10 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& );
 void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
     auto result = lidar.initialize().and_then( [&] ( auto ) {
             Dbg::blockingInfo("start measuring\n");
-            // lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
-            return lidar.startMeasurement();
+            lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
+            // return lidar.setInterruptPolarity( false ).and_then( [&] ( auto ) {
+                return lidar.startMeasurement();
+            // });
     });
 
     if ( !result ) {
@@ -191,7 +194,6 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
                 } );
             });
     });
-
     
     if ( !result ) {
         currentLidarMeasurement = LidarResult::error( result.assume_error() );
@@ -202,10 +204,6 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         std::optional< Data > data = result.assume_value();
         if ( data ) {
             currentLidarMeasurement = LidarResult::value( data.value() );
-        } else {
-            // This is not an error in ranging because the data could be received before
-            // and is currently measuring.
-            // currentLidarMeasurement = std::nullopt;
         }
         // REMOVE: *without interrupt*
         IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
