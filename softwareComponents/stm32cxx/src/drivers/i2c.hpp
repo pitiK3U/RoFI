@@ -19,7 +19,7 @@ namespace {
 
     template < typename container >
     concept RandomAccess = requires( container cont, uint32_t index ) {
-        // TODO: is the return type correct?? what about data loss, i.e. uint32_t -> uint8_t
+        // Note: it may cut higher bits if the return type is bigger than uint8_t
         { cont[index] } -> std::common_with< uint8_t >;
     };
 }
@@ -67,9 +67,8 @@ struct SclPin : public I2CPin, public detail::SclPin< SclPin >
     }
 };
 
-// TODO: transaction address 7bit vs 10bit
 struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
-    /// @brief Since this error is used in C library it is defined as enum not enum class
+    /// \brief Since this error is used in C library it is defined as enum not enum class
     enum Error : int8_t {
         /// This goes in hand with `VL53L1X_ERROR`.
         Valid = 0,
@@ -82,6 +81,14 @@ struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
     };
 
     using error_type = Error;
+
+    /**
+     * \brief Speed mode settings for the i2c peripheral, the values are calculated by STM32CUBEMX tool
+    */
+    enum class SpeedMode : uint32_t {
+        Standard = 0x00303D5B,
+        Fast     = 0x0010061A,
+    };
 
     static std::string_view errorMessage( error_type error )
     {
@@ -96,7 +103,7 @@ struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
         }
     }
 
-    I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin )
+    I2C( I2C_TypeDef *i2c, SdaPin sdaPin, SclPin sclPin, SpeedMode timing )
         : Peripheral< I2C_TypeDef >( i2c )
     {
         sdaPin.setupODAlternate( _periph );
@@ -107,11 +114,7 @@ struct I2C: public Peripheral< I2C_TypeDef >, public detail::I2C< I2C > {
         LL_I2C_InitTypeDef I2C_InitStruct = { };
 
         I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
-        // TODO: set speed - calculating the timing value from 
-        // seems as non-trivial calculation, since even stm32 provides
-        // an excel sheet to calculate it.
-        // This parameter is computed by STM32cubemx tool
-        I2C_InitStruct.Timing = 0x00303D5B;
+        I2C_InitStruct.Timing = static_cast< uint32_t >( timing );
         I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
         I2C_InitStruct.DigitalFilter = 0;
         I2C_InitStruct.OwnAddress1 = 0;
