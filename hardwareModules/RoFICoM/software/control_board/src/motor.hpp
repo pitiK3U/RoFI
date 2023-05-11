@@ -5,7 +5,7 @@
 #include <stm32g0xx_hal.h>
 #include <drivers/timer.hpp>
 #include <drivers/gpio.hpp>
-// #include <bsp.hpp>
+#include <configuration.hpp>
 
 class Motor {
 public:
@@ -51,7 +51,7 @@ private:
 
 class Slider {
 public:
-    Slider( Motor motor, const std::array< Gpio::Pin, 10 > & positionPins )
+    Slider( Motor motor, const std::array< Gpio::Pin, cfg::motorSensorsCount > & positionPins )
         : _motor( std::move( motor ) ),
           _positionPins( positionPins ),
           _goal( State::Retracted ),
@@ -171,7 +171,7 @@ public:
     }
 
     Motor _motor;
-    const std::array< Gpio::Pin, 10 > /* Error with cycle referencing?: decltype( bsp::posPins )*/ & _positionPins;
+    const std::array< Gpio::Pin, cfg::motorSensorsCount > /* Error with cycle referencing?: decltype( bsp::posPins )*/ & _positionPins;
     State _goal;
     State _currentState;
     uint8_t _goalPosition;

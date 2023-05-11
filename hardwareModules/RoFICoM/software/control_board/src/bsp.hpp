@@ -5,6 +5,7 @@
 
 #include <system/dbg.hpp>
 
+#include <configuration.hpp>
 #include "motor.hpp"
 
 #include <drivers/gpio.hpp>
@@ -40,10 +41,11 @@ namespace bsp {
     extern const Gpio::Pin spiCSPin;
     extern const Gpio::Pin lidarEnablePin;
     extern const Gpio::Pin lidarIRQPin;
-    extern const std::array< Gpio::Pin, 10 > posPins;
+
+    extern const std::array< Gpio::Pin, cfg::motorSensorsCount > posPins;
 
 
-    extern std::optional< Timer > timer;
+    extern std::optional< Timer > motorTimer;
     extern std::optional< Timer::Pwm > motorPwm;
     extern std::optional< Motor > sliderMotor;
     extern std::optional< Spi > moduleComm;

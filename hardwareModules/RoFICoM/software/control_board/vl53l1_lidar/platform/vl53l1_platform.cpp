@@ -59,8 +59,6 @@
 
 #include <lidar.hpp>
 
-// REMOVE:
-#undef NDEBUG
 #include <cassert>
 
 // Anonymous namespace is to hide symbols only into this compilation unit.

@@ -114,18 +114,6 @@ struct Lidar {
         return atoms::make_result_value< Void >();
     }
 
-    /*
-    result_type waitMeasurementDataReady()
-    {
-        VL53L1X_ERROR status = VL53L1_WaitMeasurementDataReady( &_device );
-        if ( status != VL53L1X_ERROR_NONE ) {
-            return result_type::error( errorMessage( status ) );
-        }
-
-        return atoms::make_result_value< Void >();
-    }
-    */
-
     Result< bool, error_type > getMeasurementDataReady()
     {
         uint8_t ready;
@@ -172,11 +160,23 @@ struct Lidar {
         return _getDistanceMode();
     }
 
+    /** \brief This function is used for the status command; thus, cannot wait
+     * for the response of the lidar.
+    */
+    DistanceMode getDistanceModeInstant()
+    {
+        if ( _isAutonomousMode ) {
+            return DistanceMode::Autonomous;
+        }
+
+        return static_cast< DistanceMode >( uint16_t(_currentDistanceMode) );
+    }
+
     result_type setDistanceMode( DistanceMode mode )
     {
         _isAutonomousMode = mode == DistanceMode::Autonomous; 
 
-        uint16_t setMode = static_cast< decltype( setMode ) >( _isAutonomousMode ? _defaultMode : mode );
+        VL53L1X_DistanceMode setMode = static_cast< decltype( setMode ) >( _isAutonomousMode ? _defaultMode : mode );
 
         return _setDistanceMode( setMode );
     }
@@ -265,15 +265,20 @@ struct Lidar {
     }
 
 private:
-    result_type _setDistanceMode( uint16_t mode )
-    {
-        // This is specified by the VL53L1X library
-        assert( mode == 1 || mode == 2 );
+    /// Values are specified by the VL53L1X library
+    enum class VL53L1X_DistanceMode : uint16_t {
+        Short = 1,
+        Long  = 2,
+    };
 
-        VL53L1X_ERROR status = VL53L1X_SetDistanceMode( _deviceAddress, mode );
+    result_type _setDistanceMode( VL53L1X_DistanceMode mode )
+    {
+        VL53L1X_ERROR status = VL53L1X_SetDistanceMode( _deviceAddress, uint16_t(mode) );
         if ( status != VL53L1X_ERROR_NONE ) {
             return atoms::result_error( errorMessage( status ) );
         }
+
+        _currentDistanceMode = mode;
 
         return atoms::result_error( errorMessage( status ) );
     }
@@ -309,13 +314,13 @@ private:
         auto threshold = 200;
 
         switch (mode) {
-        case DistanceMode::Short:{
+        case DistanceMode::Short: {
             if (
                 data.Status == SigmaFail
                 || data.Status == OutOfBounds
                 || data.Status == WrapAround
             ) {
-                static_cast< void >( _setDistanceMode( uint16_t( DistanceMode::Long ) ) );    
+                static_cast< void >( _setDistanceMode( VL53L1X_DistanceMode::Long ) );    
             }
             break;
             }
@@ -327,12 +332,12 @@ private:
             {
                 // Assume the distance is short enough to use short mode for better
                 // immunity against ambient light.
-                static_cast< void >( _setDistanceMode( uint16_t( DistanceMode::Short ) ) );
+                static_cast< void >( _setDistanceMode( VL53L1X_DistanceMode::Short ) );
             }
             break;
             }
         default:
-            // TODO: std::unreachable();
+            // TODO: from C++23 std::unreachable();
             break;
         }
     }
@@ -354,6 +359,7 @@ private:
     address_type _deviceAddress;
 
     bool _isAutonomousMode = true;
+    VL53L1X_DistanceMode _currentDistanceMode = VL53L1X_DistanceMode::Long;
     
     const address_type _defaultAddress = 0x52;
     const DistanceMode _defaultMode = DistanceMode::Short;

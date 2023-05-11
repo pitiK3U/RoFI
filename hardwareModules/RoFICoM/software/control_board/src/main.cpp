@@ -1,4 +1,3 @@
-#undef NDEBUG
 #include <cassert>
 #include <functional>
 #include <type_traits>
@@ -6,7 +5,6 @@
 #include <system/idle.hpp>
 #include <system/dbg.hpp>
 
-#include <drivers/clock.hpp>
 #include <drivers/gpio.hpp>
 #include <drivers/timer.hpp>
 #include <drivers/spi.hpp>
@@ -41,9 +39,8 @@ enum ConnectorStateFlags {
     /**
      * Usually is affected by ambient light.
      * Ob00 = autonomous distance measurement
-     * 0b01 = short distance measurement <= 1.3m
-     * 0b10 = medium distance measurement 
-     * 0b11 = long distance measurement <= 4m
+     * 0b01 = short distance measurement <= 1.3m 
+     * 0b10 = long distance measurement <= 4m
     */
     LidarDistanceMode = 0b11 << 3,
     MatingSide        = 1 << 8,
@@ -68,7 +65,7 @@ void onCmdVersion( SpiInterface& interf ) {
 void onCmdStatus( SpiInterface& interf, Block header,
     ConnComInterface& connInt, ConnectorStatus connectorStatus,
     Slider& slider, PowerSwitch& powerInterface,
-    std::optional< LidarResult >& lidarResult )
+    Lidar& lidar, std::optional< LidarResult >& lidarResult )
 {
     uint16_t status = viewAs< uint16_t >( header.get() );
     uint16_t mask = viewAs< uint16_t >( header.get() + 2 );
@@ -85,6 +82,14 @@ void onCmdStatus( SpiInterface& interf, Block header,
         powerInterface.connectExternal( static_cast< bool >( status & ConnectorStateFlags::ExternalConnected ) );
     }
 
+    if ( mask & ConnectorStateFlags::LidarDistanceMode ) {
+        auto mode = ( status & ConnectorStateFlags::LidarDistanceMode ) >> 11;
+        if ( mode != 0b11 ) {
+            // We cannot report error back
+            static_cast< void >( lidar.setDistanceMode( Lidar::DistanceMode( mode ) ) );
+        }
+    }
+
     uint8_t lidarStatus;
     if ( ! lidarResult.has_value() ) {
         lidarStatus = 0b10;
@@ -99,13 +104,11 @@ void onCmdStatus( SpiInterface& interf, Block header,
 
     const auto blockSize = 14;
     auto block = memory::Pool::allocate( blockSize );
-    memset( block.get(), 0xAA, blockSize );
-    // TODO: add missing first two bytes
     uint16_t flags = 0;
-    // TODO: extended flag
     flags |= ( slider.getGoal() == Slider::State::Expanded ) << 0;
     flags |= powerInterface.getInternalConnection() << 1;
     flags |= powerInterface.getExternalConnection() << 2;
+    flags |= uint8_t( lidar.getDistanceModeInstant() ) << 3;
     flags |= lidarStatus << 11;
 
     if ( connectorStatus.getOrientation() != ConnectorOrientation::Unknown ) {
@@ -122,7 +125,6 @@ void onCmdStatus( SpiInterface& interf, Block header,
     viewAs< uint16_t >( block.get() + 10 ) = powerInterface.getExtCurrent();
     if ( !( lidarStatus & 0b10 ) )
         viewAs< uint16_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
-    // ToDo: Assign remaining values
     interf.sendBlock( std::move( block ), blockSize );
     // ToDo Interpret the header
 }
@@ -161,10 +163,7 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& );
 void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
     auto result = lidar.initialize().and_then( [&] ( auto ) {
             Dbg::blockingInfo("start measuring\n");
-            lidar.setupInterrupt( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
-            // return lidar.setInterruptPolarity( false ).and_then( [&] ( auto ) {
-                return lidar.startMeasurement();
-            // });
+            return lidar.startMeasurement();
     });
 
     if ( !result ) {
@@ -173,7 +172,6 @@ void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurem
         Dbg::error( result.assume_error().data() );
         IdleTask::defer( [&]( ) { lidarInit( lidar, currentLidarMeasurement ); } );
     } else {
-        // REMOVE: *without interrupt*: 
         IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 }
@@ -208,7 +206,6 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         // REMOVE: *without interrupt*
         IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
-
 }
 
 
@@ -227,7 +224,7 @@ int main() {
     ConnectorStatus connectorStatus ( bsp::connectorSenseA, bsp::connectorSenseB );
     Lidar lidar( &*bsp::i2c, bsp::lidarEnablePin, bsp::lidarIRQPin );
 
-    lidarInit( lidar, currentLidarMeasurement );
+    // lidarInit( lidar, currentLidarMeasurement );
 
     ConnComInterface connComInterface( std::move( bsp::connectorComm ).value() );
 
@@ -239,7 +236,7 @@ int main() {
                 onCmdVersion( spiInterface );
                 break;
             case Command::STATUS:
-                onCmdStatus( spiInterface, std::move( b ), connComInterface, connectorStatus, slider, powerInterface, currentLidarMeasurement );
+                onCmdStatus( spiInterface, std::move( b ), connComInterface, connectorStatus, slider, powerInterface, lidar, currentLidarMeasurement );
                 break;
             case Command::INTERRUPT:
                 onCmdInterrupt( spiInterface, std::move( b ) );
@@ -286,7 +283,7 @@ int main() {
         }
 
         slider.run();
-        // Dbg::blockingInfo( "pos: %d,\tgoal: %d\tstate: %d", slider._position(), slider._goal, slider._currentState );
+        Dbg::blockingInfo( "pos: %d,\tgoal: %d\tstate: %d", slider._position(), slider._goal, slider._currentState );
 
         connComInterface.run();
 

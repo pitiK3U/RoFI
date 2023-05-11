@@ -72,7 +72,7 @@ namespace bsp {
         Gpio::Pin { 10, GPIOA },
     };
 
-    std::optional< Timer > timer;
+    std::optional< Timer > motorTimer;
     std::optional< Timer::Pwm > motorPwm;
     std::optional< Motor > sliderMotor;
     std::optional< Spi > moduleComm;
@@ -87,11 +87,11 @@ namespace bsp {
 
         Adc1.setup();
 
-        timer = Timer( TIM1, FreqAndRes( 1000, 2000 ) );
+        motorTimer = Timer( TIM1, FreqAndRes( 1000, 2000 ) );
 
-        motorPwm = timer->pwmChannel( LL_TIM_CHANNEL_CH1 );
+        motorPwm = motorTimer->pwmChannel( LL_TIM_CHANNEL_CH1 );
         motorPwm->attachPin( GpioA[ 8 ] );
-        timer->enable();
+        motorTimer->enable();
 
         sliderMotor = Motor( motorPwm.value(), GpioA[ 9 ] );
         sliderMotor->enable();
@@ -111,7 +111,7 @@ namespace bsp {
             UartOversampling( 8 ) );
         connectorComm->enable();
 
-        i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ) );
+        i2c = I2C( I2C2, SdaPin( GpioA[12] ), SclPin( GpioA[11] ), I2C::SpeedMode::Standard );
     }
 
 
