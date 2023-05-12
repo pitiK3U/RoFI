@@ -121,6 +121,7 @@ struct ConnectorStateImpl: public ConnectorState {
 
         s.internal = flags & ConnectorStateFlags::InternalConnected;
         s.external = flags & ConnectorStateFlags::ExternalConnected;
+        s.distanceMode = rofi::hal::LidarDistanceMode( flags & ConnectorStateFlags::LidarDistanceMode >> 3 );
         s.connected = flags & ConnectorStateFlags::MatingSide;
         s.orientation = ConnectorOrientation (
             ( flags & ConnectorStateFlags::Orientation ) >> 9 );
@@ -332,6 +333,10 @@ public:
             _issueStatusCmd( 0, ConnectorStateFlags::ExternalConnected );
         else
             _issueStatusCmd( 0, ConnectorStateFlags::InternalConnected );
+    }
+
+    virtual void setDistanceMode( rofi::hal::LidarDistanceMode mode ) override {
+        _issueStatusCmd( static_cast< uint16_t >( mode ) << 3, ConnectorStateFlags::LidarDistanceMode );
     }
 
     ConnectorLocal( ConnectorBus *bus, gpio_num_t cs )
