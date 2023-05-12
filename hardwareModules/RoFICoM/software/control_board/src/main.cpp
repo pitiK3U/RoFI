@@ -46,10 +46,10 @@ enum ConnectorStateFlags {
     MatingSide        = 1 << 8,
     Orientation       = 0b11 << 9,
     /**
-     * 0b00 = valid measurement data
-     * 0b01 = Data outside measured range (data DOESN'T HAVE TO BE valid, but can be, usually means is below or above of range we can measure )
-     * 0b10 = Data not yet measured
-     * 0b11 = error
+     * 0b00 = error
+     * 0b01 = Data not yet measured
+     * 0b10 = Data outside measured range (data DOESN'T HAVE TO BE valid, but can be, usually means is below or above of range we can measure )
+     * 0b11 = valid measurement data
     */
     LidarStatus       = 0b11 << 11,
 };
@@ -92,14 +92,14 @@ void onCmdStatus( SpiInterface& interf, Block header,
 
     uint8_t lidarStatus;
     if ( ! lidarResult.has_value() ) {
-        lidarStatus = 0b10;
+        lidarStatus = 0b01;
     } else if ( ! ( lidarResult.value().has_value() ) ) {
-        lidarStatus = 0b11;
+        lidarStatus = 0b00;
     } else if ( auto& lidarData = lidarResult.value().assume_value();
                 lidarData.Status == 0 ) {
-        lidarStatus = 0b00;
+        lidarStatus = 0b11;
     } else {
-        lidarStatus = 0b01;
+        lidarStatus = 0b10;
     }
 
     const auto blockSize = 14;
@@ -126,7 +126,6 @@ void onCmdStatus( SpiInterface& interf, Block header,
     if ( !( lidarStatus & 0b10 ) )
         viewAs< uint16_t >( block.get() + 12 ) = lidarResult.value().assume_value().Distance;
     interf.sendBlock( std::move( block ), blockSize );
-    // ToDo Interpret the header
 }
 
 void onCmdInterrupt( SpiInterface& interf, Block /*header*/ ) {
@@ -177,7 +176,6 @@ void lidarInit( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurem
 }
 
 void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasurement ) {
-    Dbg::blockingInfo( "lidarGet called" );
     using Data = LidarResult::value_type;
 
     auto result = lidar.getMeasurementDataReady().and_then( [&] ( bool ready ) -> atoms::Result< std::optional< Data >, std::string_view >  {
@@ -203,7 +201,6 @@ void lidarGet( Lidar& lidar, std::optional< LidarResult >& currentLidarMeasureme
         if ( data ) {
             currentLidarMeasurement = LidarResult::value( data.value() );
         }
-        // REMOVE: *without interrupt*
         IdleTask::defer( [&]( ) { lidarGet( lidar, currentLidarMeasurement ); } );
     }
 }
